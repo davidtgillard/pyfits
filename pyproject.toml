@@ -1,0 +1,82 @@
+[project]
+name = "pyfits"
+version = "0.1.0"
+description = "Python wrapper library for fits"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.11.15,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.1.0",
+    "pip-audit>=2.10.0",
+    "ruff>=0.15.13",
+]
+
+# --- Ruff: shared settings ---
+[tool.ruff]
+# Target Python syntax version for parsing and pyupgrade rules.
+target-version = "py312"
+# Maximum line length; shared by the formatter and pycodestyle E501.
+line-length = 88
+# First-party import roots for isort (I) and import classification.
+src = ["src"]
+
+[tool.ruff.format]
+# Use double quotes for strings (matches common Black/ruff defaults).
+quote-style = "double"
+
+# --- Ruff: linter ---
+[tool.ruff.lint]
+# Required for pydoclint (DOC) rules.
+preview = true
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "D",   # pydocstyle
+    "DOC", # pydoclint
+    "S",   # flake8-bandit (security)
+    "N",   # pep8-naming
+    "PT",  # flake8-pytest-style
+]
+
+[tool.ruff.lint.pydocstyle]
+# Google-style docstring sections; auto-disables conflicting D rules.
+convention = "google"
+
+[tool.ruff.lint.pydoclint]
+# When false, one-line docstrings are still checked against signatures.
+ignore-one-line-docstrings = false
+
+[tool.ruff.lint.flake8-pytest-style]
+# Prefer @pytest.fixture without parentheses.
+fixture-parentheses = false
+# Readable @pytest.mark.parametrize name tuples.
+parametrize-names-type = "csv"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: relax docstring burden; allow assert (bandit S101).
+"tests/**/*.py" = ["D", "DOC", "S101"]
+
+# --- Mypy ---
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+packages = ["pyfits"]
+strict = true
+warn_unused_configs = true
+show_error_codes = true
+namespace_packages = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
