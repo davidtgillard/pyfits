@@ -9,7 +9,26 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout pyfits
+        uses: actions/checkout@v4
+
+      - name: Checkout libfits
+        uses: actions/checkout@v4
+        with:
+          repository: davidtgillard/fits
+          path: fits
+          # Pin to same repo; override with ref when publishing wheels
+          ref: libfits
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+
+      - name: Build and bundle libfits
+        run: |
+          cd fits
+          zig build -Doptimize=ReleaseSafe
+          mkdir -p ../src/pyfits/_lib
+          cp zig-out/lib/libfits.so ../src/pyfits/_lib/
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -20,7 +39,7 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync --locked --all-groups
+        run: uv sync --all-groups
 
       - name: Ruff lint
         run: uv run ruff check .
@@ -30,6 +49,9 @@ jobs:
 
       - name: Mypy
         run: uv run mypy
+
+      - name: Pytest
+        run: uv run pytest
 
       - name: pip-audit
         run: uv run pip-audit

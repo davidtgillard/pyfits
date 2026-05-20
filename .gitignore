@@ -15,3 +15,9 @@ build/
 *.egg-info/
 
 humans-only/
+
+# Bundled native library (copy via scripts/copy_libfits.sh)
+src/pyfits/_lib/*.so
+src/pyfits/_lib/*.dll
+
+.fits-lib-version

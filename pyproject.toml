@@ -5,7 +5,9 @@ description = "Python wrapper library for fits"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "AGPL-3.0-or-later" }
-dependencies = []
+dependencies = [
+    "jsonschema>=4.23.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.15,<0.12.0"]
@@ -15,8 +17,14 @@ build-backend = "uv_build"
 dev = [
     "mypy>=2.1.0",
     "pip-audit>=2.10.0",
+    "pytest>=8.3.0",
     "ruff>=0.15.13",
+    "types-jsonschema>=4.23.0",
 ]
+
+[tool.pyfits]
+# Default sibling checkout for scripts/copy_libfits.sh
+libfits-src = "../fits"
 
 # --- Ruff: shared settings ---
 [tool.ruff]
@@ -66,8 +74,15 @@ parametrize-names-type = "csv"
 [tool.ruff.lint.per-file-ignores]
 # Tests: relax docstring burden; allow assert (bandit S101).
 "tests/**/*.py" = ["D", "DOC", "S101"]
+# Internal FFI/helpers: public API is documented on Repo and package exports.
+"src/pyfits/_*.py" = ["DOC"]
+"src/pyfits/models.py" = ["DOC"]
+"src/pyfits/repo.py" = ["D105", "DOC"]
 
 # --- Mypy ---
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.mypy]
 python_version = "3.12"
 mypy_path = "src"
@@ -77,6 +92,3 @@ warn_unused_configs = true
 show_error_codes = true
 namespace_packages = false
 
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
