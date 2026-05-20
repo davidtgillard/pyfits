@@ -42,16 +42,60 @@ jobs:
         run: uv sync --all-groups
 
       - name: Ruff lint
-        run: uv run ruff check .
+        run: uv run ruff check src tests
 
       - name: Ruff format
-        run: uv run ruff format --check .
+        run: uv run ruff format --check src tests
 
       - name: Mypy
         run: uv run mypy
 
-      - name: Pytest
+      - name: Pytest with coverage
+        id: pytest
         run: uv run pytest
+
+      - name: Coverage summary
+        if: always() && steps.pytest.outcome != 'skipped'
+        run: |
+          python - <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          path = Path("coverage.xml")
+          if not path.is_file():
+              print("No coverage data available (coverage.xml missing).")
+              sys.exit(0)
+
+          root = ET.parse(path).getroot()
+          lines_valid = int(float(root.get("lines-valid", 0)))
+          lines_covered = int(float(root.get("lines-covered", 0)))
+          branches_valid = int(float(root.get("branches-valid", 0)))
+          branches_covered = int(float(root.get("branches-covered", 0)))
+          line_pct = 100.0 * float(root.get("line-rate", 0))
+          branch_pct = 100.0 * float(root.get("branch-rate", 0))
+          print(f"Line coverage:   {lines_covered}/{lines_valid} ({line_pct:.1f}%)")
+          if branches_valid:
+              print(
+                  f"Branch coverage: {branches_covered}/{branches_valid} "
+                  f"({branch_pct:.1f}%)"
+              )
+          PY
+          if [ -f .coverage ]; then
+            uv run coverage json -o coverage.json
+          fi
+
+      - name: Upload coverage reports
+        if: always() && steps.pytest.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            coverage.json
+            htmlcov/
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: pip-audit
         run: uv run pip-audit

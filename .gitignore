@@ -9,6 +9,13 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+
 # Distribution / packaging
 dist/
 build/
