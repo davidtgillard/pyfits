@@ -35,10 +35,21 @@ OK_TRUE_SCHEMA: dict[str, Any] = {
     "properties": {"ok": {"const": True}},
 }
 
+OUTPUT_GRAPH_SUCCESS_SCHEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["ok", "graph"],
+    "properties": {
+        "ok": {"const": True},
+        "graph": {"type": "object"},
+    },
+}
+
 SUCCESS_SCHEMA_BY_OPERATION: dict[str, str] = {
     "validate": "validate_response",
     "new_node": "new_node_response",
-    "output_graph": "ok_true",
+    "output_graph": "output_graph_success",
     "init": "ok_true",
     "new_link": "ok_true",
     "remove": "ok_true",
@@ -49,7 +60,7 @@ SUCCESS_SCHEMA_BY_OPERATION: dict[str, str] = {
 
 def schema_ids() -> tuple[str, ...]:
     """Return known schema identifiers (includes pyfits-local ``ok_true``)."""
-    return _LIBFITS_SCHEMA_IDS + ("ok_true",)
+    return _LIBFITS_SCHEMA_IDS + ("ok_true", "output_graph_success")
 
 
 @lru_cache(maxsize=32)
@@ -57,6 +68,8 @@ def schema_dict(schema_id: str) -> dict[str, Any]:
     """Return a parsed JSON Schema document."""
     if schema_id == "ok_true":
         return OK_TRUE_SCHEMA
+    if schema_id == "output_graph_success":
+        return OUTPUT_GRAPH_SUCCESS_SCHEMA
     if schema_id not in _LIBFITS_SCHEMA_IDS:
         msg = f"unknown schema id: {schema_id}"
         raise KeyError(msg)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from pyfits._errors import FitsSchemaError
 from pyfits._validate import validate_response
 
 
@@ -50,3 +51,13 @@ def test_validate_success_minimal_fails_invariants_later() -> None:
             },
         },
     )
+
+
+def test_unknown_operation_raises_key_error() -> None:
+    with pytest.raises(KeyError, match="unknown operation"):
+        validate_response("not_an_op", {"ok": True})
+
+
+def test_schema_validation_wrapped_as_fits_schema_error() -> None:
+    with pytest.raises(FitsSchemaError, match="failed schema"):
+        validate_response("init", {"ok": True, "extra": "bad"})
