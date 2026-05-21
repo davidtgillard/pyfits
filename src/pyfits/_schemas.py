@@ -65,7 +65,20 @@ def schema_ids() -> tuple[str, ...]:
 
 @lru_cache(maxsize=32)
 def schema_dict(schema_id: str) -> dict[str, Any]:
-    """Return a parsed JSON Schema document."""
+    """Return a parsed JSON Schema document.
+
+    Args:
+        schema_id: Schema identifier (libfits embedded id or pyfits-local
+            ``ok_true`` / ``output_graph_success``).
+
+    Returns:
+        Parsed JSON Schema object.
+
+    Raises:
+        KeyError: Unknown schema id.
+        RuntimeError: libfits schema accessor returned NULL.
+        TypeError: Parsed schema is not a JSON object.
+    """
     if schema_id == "ok_true":
         return OK_TRUE_SCHEMA
     if schema_id == "output_graph_success":
@@ -87,7 +100,14 @@ def schema_dict(schema_id: str) -> dict[str, Any]:
 
 @lru_cache(maxsize=32)
 def validator(schema_id: str) -> Draft202012Validator:
-    """Return a compiled JSON Schema validator."""
+    """Return a compiled JSON Schema validator.
+
+    Args:
+        schema_id: Schema identifier passed to :func:`schema_dict`.
+
+    Returns:
+        Compiled Draft 2020-12 validator for the schema.
+    """
     return Draft202012Validator(schema_dict(schema_id))
 
 

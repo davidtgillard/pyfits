@@ -2,6 +2,18 @@
 
 Python bindings for [libfits](https://github.com/davidtgillard/fits) — the fits graph repository engine (nodes, links, registry). This is **not** astronomy FITS file I/O (historical Astropy `pyfits`).
 
+## Documentation
+
+Full API reference and guides: https://davidtgillard.github.io/pyfits/
+
+Build locally:
+
+```bash
+uv sync --group docs
+uv run mkdocs serve   # preview at http://127.0.0.1:8000
+uv run mkdocs build --strict
+```
+
 ## Requirements
 
 - Python 3.12+

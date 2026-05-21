@@ -44,7 +44,12 @@ class FitsStatus(IntEnum):
 
 
 class FitsError(Exception):
-    """libfits operation failed."""
+    """libfits operation failed.
+
+    Attributes:
+        status: Stable C status code when no JSON error body was returned.
+        code: Machine-readable error code from an ``ok: false`` JSON response.
+    """
 
     def __init__(
         self,
@@ -53,13 +58,27 @@ class FitsError(Exception):
         status: FitsStatus | None = None,
         code: str | None = None,
     ) -> None:
+        """Initialize FitsError.
+
+        Args:
+            message: Human-readable error description.
+            status: Optional libfits C status when raised from a negative return
+                code without JSON.
+            code: Optional error code from a structured JSON error response.
+        """
         super().__init__(message)
         self.status = status
         self.code = code
 
 
 class FitsSchemaError(FitsError):
-    """Response JSON failed schema or invariant checks."""
+    """Response JSON failed schema or invariant checks.
+
+    Attributes:
+        operation: libfits operation name (e.g. ``validate``).
+        schema_id: Schema or invariant identifier that failed.
+        validation_message: Optional detail from jsonschema when applicable.
+    """
 
     def __init__(
         self,
@@ -69,6 +88,14 @@ class FitsSchemaError(FitsError):
         schema_id: str,
         validation_message: str | None = None,
     ) -> None:
+        """Initialize FitsSchemaError.
+
+        Args:
+            message: Human-readable error description.
+            operation: libfits operation that produced the response.
+            schema_id: Schema or invariant identifier that failed validation.
+            validation_message: Optional jsonschema validation detail.
+        """
         super().__init__(message)
         self.operation = operation
         self.schema_id = schema_id

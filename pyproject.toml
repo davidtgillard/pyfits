@@ -22,6 +22,11 @@ dev = [
     "ruff>=0.15.13",
     "types-jsonschema>=4.23.0",
 ]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.27.0",
+]
 
 [tool.pyfits]
 # Default sibling checkout for scripts/copy_libfits.sh
