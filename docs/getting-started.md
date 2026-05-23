@@ -42,5 +42,5 @@ uv run mkdocs build --strict
 ## Quality checks
 
 ```bash
-uv run ruff check . && uv run ruff format . && uv run mypy && uv run pytest && uv run pip-audit
+uv run ruff check . && uv run ruff format . && uv run mypy && uv run pytest && uv run pip-audit --skip-editable
 ```

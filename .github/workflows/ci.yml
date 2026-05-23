@@ -98,4 +98,4 @@ jobs:
           if-no-files-found: ignore
 
       - name: pip-audit
-        run: uv run pip-audit
+        run: uv run pip-audit --skip-editable

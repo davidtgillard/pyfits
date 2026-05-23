@@ -84,7 +84,7 @@ Use one `Repo` per thread; do not share handles across threads without external 
 ## Quality checks
 
 ```bash
-uv run ruff check . && uv run ruff format . && uv run mypy && uv run pytest && uv run pip-audit
+uv run ruff check . && uv run ruff format . && uv run mypy && uv run pytest && uv run pip-audit --skip-editable
 ```
 
 ## libfits coupling
