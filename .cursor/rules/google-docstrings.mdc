@@ -20,7 +20,7 @@ Private helpers (`_name`) need only a brief summary when non-obvious.
 
 | Symbol kind | Required sections |
 |-------------|-------------------|
-| Function / method with parameters | Summary, `Args`, `Returns` (if not `None`), `Raises` (every documented exception) |
+| Function / method returning `Result` | Summary, `Args`, `Returns` describing both `Ok(...)` and `Err(...)` payloads; `Raises` only for programming-error exceptions |
 | Function returning `None` | Summary, `Args`, `Raises` |
 | Class / dataclass / enum | Summary, `Attributes` for fields and enum members |
 | Module-level constant | Document in the module docstring under a `Constants:` heading, or attach a trailing string assignment doc (see below) |
@@ -55,4 +55,4 @@ PROTOCOL_VERSION = 1
 - [ ] Every new or changed public symbol has Args / Returns / Raises as applicable
 - [ ] Dataclass and enum fields are listed under `Attributes`
 - [ ] Re-exported public names inherit docs from their defining module
-- [ ] Exceptions raised by callers are documented, not swallowed silently
+- [ ] Exceptions raised for programming mistakes are documented under **Raises**; operational failures are documented under **Returns** as `Err(...)` payloads

@@ -9,7 +9,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from pyfits._errors import FitsError, raise_for_status
+from pyfits._errors import FitsError, error_from_status, lib_not_found_error
+from pyfits.result import Err, Ok, Result
 
 if TYPE_CHECKING:
     from ctypes import CDLL
@@ -50,11 +51,16 @@ def _repo_root_candidates() -> list[Path]:
     return candidates
 
 
-def _load_library() -> CDLL:
-    """Load libfits."""
+def load_library() -> Result[CDLL, FitsError]:
+    """Load libfits and return the configured CDLL handle.
+
+    Returns:
+        Loaded library on success, or ``Err(FitsError)`` when not found or load
+        fails.
+    """
     global _LIB
     if _LIB is not None:
-        return _LIB
+        return Ok(_LIB)
 
     lib_path: Path | None = None
     for candidate in _repo_root_candidates():
@@ -63,12 +69,32 @@ def _load_library() -> CDLL:
             break
     if lib_path is None:
         msg = "libfits shared library not found; set PYFITS_LIB_PATH or build ../fits"
-        raise OSError(msg)
+        return Err(lib_not_found_error(msg))
 
-    lib = ctypes.CDLL(str(lib_path))
+    try:
+        lib = ctypes.CDLL(str(lib_path))
+    except OSError as exc:
+        return Err(FitsError(str(exc), code="lib_load_failed"))
     _configure_lib(lib)
     _LIB = lib
-    return lib
+    return Ok(lib)
+
+
+def lib() -> CDLL:
+    """Return the loaded libfits CDLL.
+
+    Returns:
+        Loaded and configured libfits shared library handle.
+
+    Raises:
+        RuntimeError: When :func:`load_library` returns ``Err``.
+    """
+    match load_library():
+        case Ok(loaded):
+            return loaded
+        case Err(error):
+            msg = str(error)
+            raise RuntimeError(msg)
 
 
 def _configure_lib(lib: CDLL) -> None:
@@ -131,32 +157,17 @@ def _configure_lib(lib: CDLL) -> None:
         fn.restype = ctypes.c_char_p
 
 
-def lib() -> CDLL:
-    """Return the loaded libfits CDLL.
-
-    Returns:
-        Loaded and configured libfits shared library handle.
-
-    Raises:
-        OSError: When the libfits shared library cannot be found or loaded.
-    """
-    return _load_library()
-
-
-def lib_path() -> Path:
+def lib_path() -> Result[Path, FitsError]:
     """Return the path to the libfits shared library.
 
     Returns:
-        Filesystem path to the first discovered libfits shared library.
-
-    Raises:
-        OSError: When no libfits shared library can be found.
+        ``Ok(path)`` for the first discovered library, or ``Err(FitsError)`` when
+        none is found.
     """
     for candidate in _repo_root_candidates():
         if candidate.is_file():
-            return candidate
-    msg = "libfits shared library not found"
-    raise OSError(msg)
+            return Ok(candidate)
+    return Err(lib_not_found_error("libfits shared library not found"))
 
 
 def _decode_c_string(raw: bytes | int | None) -> str:
@@ -167,36 +178,39 @@ def _decode_c_string(raw: bytes | int | None) -> str:
     return ctypes.cast(raw, ctypes.c_char_p).value.decode("utf-8")  # type: ignore[union-attr]
 
 
-def version_string() -> str:
+def version_string() -> Result[str, FitsError]:
     """Return the libfits package version string.
 
     Returns:
-        Version string reported by ``FITS_version_string()``.
-
-    Raises:
-        OSError: When the libfits shared library cannot be found or loaded.
+        ``Ok(version)`` from ``FITS_version_string()``, or ``Err(FitsError)`` when
+        the library cannot be loaded.
     """
-    return _decode_c_string(lib().FITS_version_string())
+    match load_library():
+        case Ok(loaded):
+            return Ok(_decode_c_string(loaded.FITS_version_string()))
+        case Err(error):
+            return Err(error)
 
 
-def last_error() -> str:
+def last_error() -> Result[str, FitsError]:
     """Return the thread-local libfits diagnostic string.
 
     Returns:
-        Most recent libfits error message for the current thread, or an empty
-        string when no diagnostic is available.
-
-    Raises:
-        OSError: When the libfits shared library cannot be found or loaded.
+        ``Ok(message)`` for the current thread diagnostic, or ``Err(FitsError)``
+        when the library cannot be loaded.
     """
-    return _decode_c_string(lib().FITS_last_error())
+    match load_library():
+        case Ok(loaded):
+            return Ok(_decode_c_string(loaded.FITS_last_error()))
+        case Err(error):
+            return Err(error)
 
 
 def open_repo(
     repo_root: str | bytes,
     *,
     registry_snapshot: str | bytes | None = None,
-) -> ctypes.c_void_p:
+) -> Result[ctypes.c_void_p, FitsError]:
     """Open a FitsRepo session.
 
     Args:
@@ -205,29 +219,36 @@ def open_repo(
             bytes.
 
     Returns:
-        Opaque repository session handle.
-
-    Raises:
-        OSError: When the libfits shared library cannot be found or loaded.
-        FitsError: When ``FITS_CORE_repo_open`` returns a null handle.
+        ``Ok(handle)`` on success, or ``Err(FitsError)`` on failure.
     """
-    root_b = repo_root if isinstance(repo_root, bytes) else repo_root.encode("utf-8")
-    snap_b: bytes | None = None
-    if registry_snapshot is not None:
-        snap_b = (
-            registry_snapshot
-            if isinstance(registry_snapshot, bytes)
-            else registry_snapshot.encode("utf-8")
-        )
-    opts = FitsRepoOpenOptions(
-        struct_size=ctypes.sizeof(FitsRepoOpenOptions),
-        repo_root=root_b,
-        registry_snapshot_path=snap_b,
-    )
-    handle = lib().FITS_CORE_repo_open(ctypes.byref(opts))
-    if not handle:
-        raise FitsError(last_error() or "FITS_CORE_repo_open failed")
-    return cast(ctypes.c_void_p, handle)
+    match load_library():
+        case Err(error):
+            return Err(error)
+        case Ok(loaded):
+            root_b = (
+                repo_root if isinstance(repo_root, bytes) else repo_root.encode("utf-8")
+            )
+            snap_b: bytes | None = None
+            if registry_snapshot is not None:
+                snap_b = (
+                    registry_snapshot
+                    if isinstance(registry_snapshot, bytes)
+                    else registry_snapshot.encode("utf-8")
+                )
+            opts = FitsRepoOpenOptions(
+                struct_size=ctypes.sizeof(FitsRepoOpenOptions),
+                repo_root=root_b,
+                registry_snapshot_path=snap_b,
+            )
+            handle = loaded.FITS_CORE_repo_open(ctypes.byref(opts))
+            if not handle:
+                match last_error():
+                    case Ok(message):
+                        msg = message or "FITS_CORE_repo_open failed"
+                    case Err(error):
+                        msg = str(error)
+                return Err(FitsError(msg))
+            return Ok(cast(ctypes.c_void_p, handle))
 
 
 def close_repo(handle: ctypes.c_void_p) -> None:
@@ -235,9 +256,6 @@ def close_repo(handle: ctypes.c_void_p) -> None:
 
     Args:
         handle: Repository session handle returned by :func:`open_repo`.
-
-    Raises:
-        OSError: When the libfits shared library cannot be found or loaded.
     """
     lib().FITS_CORE_repo_close(handle)
 
@@ -246,7 +264,7 @@ def call_json(
     operation: str,
     handle: ctypes.c_void_p,
     request_json: bytes | None,
-) -> tuple[int, str]:
+) -> Result[tuple[int, str], FitsError]:
     """Invoke a ``FITS_*`` JSON function and return status and response text.
 
     Args:
@@ -256,30 +274,37 @@ def call_json(
         request_json: Optional compact UTF-8 JSON request body.
 
     Returns:
-        Tuple of ``(status_code, response_text)``. ``response_text`` is empty
-        when libfits returns no JSON body.
-
-    Raises:
-        OSError: When the libfits shared library cannot be found or loaded.
-        FitsError: When libfits returns a negative status with no JSON body.
+        ``Ok((status, text))`` on success. ``response_text`` is empty when
+        libfits returns no JSON body. ``Err(FitsError)`` when the library cannot
+        be loaded or libfits returns a negative status with no JSON body.
     """
-    fn = cast(
-        Callable[..., int],
-        getattr(lib(), f"FITS_{operation}"),
-    )
-    req_ptr: ctypes.c_char_p | None = None
-    if request_json is not None:
-        req_ptr = ctypes.c_char_p(request_json)
-    out = ctypes.c_char_p()
-    status = fn(handle, req_ptr, ctypes.byref(out))
-    if not out:
-        raise_for_status(status, last_error())
-        return status, ""
-    try:
-        if out.value is None:
-            text = ""
-        else:
-            text = out.value.decode("utf-8")
-    finally:
-        lib().FITS_free(out)
-    return status, text
+    match load_library():
+        case Err(error):
+            return Err(error)
+        case Ok(loaded):
+            fn = cast(
+                Callable[..., int],
+                getattr(loaded, f"FITS_{operation}"),
+            )
+            req_ptr: ctypes.c_char_p | None = None
+            if request_json is not None:
+                req_ptr = ctypes.c_char_p(request_json)
+            out = ctypes.c_char_p()
+            status = fn(handle, req_ptr, ctypes.byref(out))
+            if not out:
+                match last_error():
+                    case Ok(message):
+                        err = error_from_status(status, message)
+                    case Err(error):
+                        return Err(error)
+                if err is not None:
+                    return Err(err)
+                return Ok((status, ""))
+            try:
+                if out.value is None:
+                    text = ""
+                else:
+                    text = out.value.decode("utf-8")
+            finally:
+                loaded.FITS_free(out)
+            return Ok((status, text))

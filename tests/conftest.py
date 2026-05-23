@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from support import unwrap
 
 from pyfits import Repo
 
@@ -20,8 +21,8 @@ def repo_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def initialized_repo(repo_dir: Path) -> Repo:
     """Repo after init and minimal type registration (abi_test pattern)."""
-    repo = Repo(repo_dir)
-    repo.init()
-    repo.register_node_type("req", abstract=True)
-    repo.register_node_type("REQ", extends="req")
+    repo = unwrap(Repo.open(repo_dir))
+    unwrap(repo.init())
+    unwrap(repo.register_node_type("req", abstract=True))
+    unwrap(repo.register_node_type("REQ", extends="req"))
     return repo

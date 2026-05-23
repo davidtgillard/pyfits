@@ -7,11 +7,11 @@ from typing import Any
 import pytest
 
 from pyfits._errors import (
-    FitsError,
     FitsSchemaError,
     FitsStatus,
-    raise_for_error_document,
-    raise_for_status,
+    error_from_error_document,
+    error_from_status,
+    lib_not_found_error,
     status_from_int,
 )
 
@@ -34,8 +34,8 @@ def test_status_from_int(value: int, expected: FitsStatus | None) -> None:
         {"ok": True},
     ],
 )
-def test_raise_for_error_document_ok(doc: dict[str, Any]) -> None:
-    raise_for_error_document(doc)
+def test_error_from_error_document_ok(doc: dict[str, Any]) -> None:
+    assert error_from_error_document(doc) is None
 
 
 @pytest.mark.parametrize(
@@ -56,13 +56,17 @@ def test_raise_for_error_document_ok(doc: dict[str, Any]) -> None:
         ),
     ],
 )
-def test_raise_for_error_document_raises(doc: dict[str, Any], match: str) -> None:
-    with pytest.raises(FitsError, match=match):
-        raise_for_error_document(doc)
+def test_error_from_error_document_returns_error(
+    doc: dict[str, Any],
+    match: str,
+) -> None:
+    err = error_from_error_document(doc)
+    assert err is not None
+    assert match in str(err)
 
 
-def test_raise_for_status_ok() -> None:
-    raise_for_status(0, "")
+def test_error_from_status_ok() -> None:
+    assert error_from_status(0, "") is None
 
 
 @pytest.mark.parametrize(
@@ -72,10 +76,21 @@ def test_raise_for_status_ok() -> None:
         (-1, "", "status -1"),
     ],
 )
-def test_raise_for_status_raises(status: int, last_error: str, match: str) -> None:
-    with pytest.raises(FitsError, match=match) as exc_info:
-        raise_for_status(status, last_error)
-    assert exc_info.value.status == FitsStatus.ERR_INVALID_ARGUMENT
+def test_error_from_status_returns_error(
+    status: int,
+    last_error: str,
+    match: str,
+) -> None:
+    err = error_from_status(status, last_error)
+    assert err is not None
+    assert match in str(err)
+    assert err.status == FitsStatus.ERR_INVALID_ARGUMENT
+
+
+def test_lib_not_found_error() -> None:
+    err = lib_not_found_error("missing")
+    assert err.code == "lib_not_found"
+    assert str(err) == "missing"
 
 
 def test_fits_schema_error_attributes() -> None:

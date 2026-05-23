@@ -6,38 +6,40 @@ import pytest
 
 from pyfits._errors import FitsSchemaError
 from pyfits._validate import validate_response
+from pyfits.result import Err, Ok
 
 
 def test_ok_true_valid() -> None:
-    validate_response("init", {"ok": True})
+    result = validate_response("init", {"ok": True})
+    assert isinstance(result, Ok)
 
 
 def test_ok_true_rejects_false() -> None:
-    import jsonschema
-
     from pyfits._schemas import validate_document
 
-    with pytest.raises(jsonschema.ValidationError):
-        validate_document("ok_true", {"ok": False})
+    result = validate_document("ok_true", {"ok": False})
+    assert isinstance(result, Err)
 
 
 def test_error_path_uses_error_schema() -> None:
-    validate_response(
+    result = validate_response(
         "init",
         {"ok": False, "error": {"code": "e", "message": "m"}},
     )
+    assert isinstance(result, Ok)
 
 
 def test_error_response_valid() -> None:
-    validate_response(
+    result = validate_response(
         "init",
         {"ok": False, "error": {"code": "AlreadyInitialized", "message": "already"}},
     )
+    assert isinstance(result, Ok)
 
 
 def test_validate_success_minimal_fails_invariants_later() -> None:
     # Schema allows ok-only; models layer enforces validation_issues.
-    validate_response(
+    result = validate_response(
         "validate",
         {
             "ok": True,
@@ -51,6 +53,7 @@ def test_validate_success_minimal_fails_invariants_later() -> None:
             },
         },
     )
+    assert isinstance(result, Ok)
 
 
 def test_unknown_operation_raises_key_error() -> None:
@@ -59,5 +62,7 @@ def test_unknown_operation_raises_key_error() -> None:
 
 
 def test_schema_validation_wrapped_as_fits_schema_error() -> None:
-    with pytest.raises(FitsSchemaError, match="failed schema"):
-        validate_response("init", {"ok": True, "extra": "bad"})
+    result = validate_response("init", {"ok": True, "extra": "bad"})
+    assert isinstance(result, Err)
+    assert isinstance(result.err_value, FitsSchemaError)
+    assert "failed schema" in str(result.err_value)

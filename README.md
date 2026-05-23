@@ -41,22 +41,31 @@ uv sync --all-groups
 
 ```python
 from pathlib import Path
-from pyfits import ObjectTypeName, Repo
 
-with Repo(Path("my-product")) as repo:
-    repo.init()
-    repo.register_node_type("req", abstract=True)
-    repo.register_node_type("REQ", extends="req")
-    node_id = repo.new_node(ObjectTypeName("REQ"), title="First requirement")
-    result = repo.validate()
-    print(result.summary.error_count, len(result.validation_issues))
+from pyfits import Err, ObjectTypeName, Ok, Repo
+
+match Repo.open(Path("my-product")):
+    case Ok(repo):
+        with repo:
+            repo.init()
+            repo.register_node_type("req", abstract=True)
+            repo.register_node_type("REQ", extends="req")
+            match repo.new_node(ObjectTypeName("REQ"), title="First requirement"):
+                case Ok(node_id):
+                    match repo.validate():
+                        case Ok(result):
+                            print(result.summary.error_count, len(result.validation_issues))
+    case Err(err):
+        print(err)
 ```
+
+Operational failures return `Result[..., FitsError]` (`Ok` / `Err`). Check the variant instead of catching `FitsError` for libfits operations.
 
 ## Response validation
 
 Every libfits JSON response is validated before returning to callers:
 
-1. **JSON Schema** — schemas are loaded from the embedded `FITS_*_schema()` accessors in the loaded `libfits.so` (not vendored files). Failures raise `FitsSchemaError`.
+1. **JSON Schema** — schemas are loaded from the embedded `FITS_*_schema()` accessors in the loaded `libfits.so` (not vendored files). Failures become `Err(FitsSchemaError)`.
 2. **Invariants** — e.g. successful `validate()` must include `validation_issues` and `summary` (the embedded `validate_response` schema only requires `ok`).
 
 Operations without a libfits success schema (`init`, `new_link`, `remove`, `register_*`, `output_graph`) use a minimal local `ok: true` schema. `output_graph` success additionally requires a `graph` object in Python.
@@ -64,18 +73,26 @@ Operations without a libfits success schema (`init`, `new_link`, `remove`, `regi
 Inspect schemas:
 
 ```python
-from pyfits import schemas
+from pyfits import Ok, schemas
 
-doc = schemas.schema_dict("validate_response")
-schemas.validator("error_response").validate({"ok": False, "error": {"code": "x", "message": "y"}})
+match schemas.schema_dict("validate_response"):
+    case Ok(doc):
+        ...
+match schemas.validator("error_response"):
+    case Ok(v):
+        v.validate({"ok": False, "error": {"code": "x", "message": "y"}})
 ```
 
 ## Errors
 
-| Exception | Meaning |
+| Mechanism | Meaning |
 |-----------|---------|
-| `FitsError` | `ok: false` JSON response or negative C status |
-| `FitsSchemaError` | Response JSON failed schema or invariant checks |
+| `Result[..., FitsError]` | Operational libfits failures (`ok: false`, I/O, missing lib, schema/invariant failures) |
+| `ValueError` | Invalid `ObjectTypeName` or other caller input |
+| `RuntimeError` | Using a `Repo` after `close()` |
+| `KeyError` | Invalid `schemas.schema_dict` id |
+
+`FitsError` and `FitsSchemaError` are error **payload** types carried in `Err(...)`, not control-flow exceptions on the public `Repo` API.
 
 ## Threading
 
@@ -89,7 +106,7 @@ uv run ruff check . && uv run ruff format . && uv run mypy && uv run pytest && u
 
 ## libfits coupling
 
-- C ABI version is read from the loaded library (`pyfits.api_version_packed()`, etc.).
+- C ABI version is read from the loaded library (`pyfits.libfits_version_packed()`, etc.).
 - Pin the libfits git ref in [`.fits-lib-version`](.fits-lib-version) for CI.
 - CI checks out `davidtgillard/fits` and builds before tests.
 

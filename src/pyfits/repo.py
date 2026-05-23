@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from pyfits import _json, _native
+from pyfits._errors import FitsError
 from pyfits.models import (
     ObjectTypeName,
     ValidateResult,
@@ -14,6 +15,7 @@ from pyfits.models import (
     parse_output_graph,
     parse_validate_result,
 )
+from pyfits.result import Err, Ok, Result
 
 PROTOCOL_VERSION = 1
 """JSON protocol version sent to libfits for supported operations."""
@@ -31,15 +33,26 @@ def _with_protocol_version(operation: str, request: dict[str, Any]) -> dict[str,
 class Repo:
     """Open fits repository session (one handle per thread).
 
-    Use as a context manager or call :meth:`close` explicitly when finished.
+    Open sessions with :meth:`open`. Use as a context manager or call
+    :meth:`close` explicitly when finished.
     """
 
-    def __init__(
-        self,
+    def __init__(self, handle: ctypes.c_void_p, path: Path) -> None:
+        """Store an already-open repository session handle.
+
+        Args:
+            handle: Native session handle from :func:`pyfits._native.open_repo`.
+            path: Resolved repository root path.
+        """
+        self._handle: ctypes.c_void_p | None = handle
+        self._path = path
+
+    @staticmethod
+    def open(
         path: str | Path,
         *,
         registry_snapshot: str | Path | None = None,
-    ) -> None:
+    ) -> Result[Repo, FitsError]:
         """Open a repository at ``path``.
 
         The directory must exist on disk before calling :meth:`init`.
@@ -50,18 +63,21 @@ class Repo:
                 provided, libfits validates the live registry against this
                 snapshot for the lifetime of the session.
 
-        Raises:
-            OSError: When the libfits shared library cannot be loaded.
-            FitsError: When ``FITS_CORE_repo_open`` fails.
+        Returns:
+            ``Ok(Repo)`` on success, or ``Err(FitsError)`` when opening fails.
         """
-        self._path = Path(path).resolve()
+        resolved = Path(path).resolve()
         snap: str | None = None
         if registry_snapshot is not None:
             snap = str(Path(registry_snapshot).resolve())
-        self._handle: ctypes.c_void_p | None = _native.open_repo(
-            str(self._path).encode("utf-8"),
+        match _native.open_repo(
+            str(resolved).encode("utf-8"),
             registry_snapshot=snap.encode("utf-8") if snap else None,
-        )
+        ):
+            case Err(error):
+                return Err(error)
+            case Ok(handle):
+                return Ok(Repo(handle, resolved))
 
     def __enter__(self) -> Repo:
         """Enter the context manager and return this session.
@@ -93,7 +109,7 @@ class Repo:
         no_interactive: bool = True,
         init_git: bool = False,
         edit_gitignore: bool = False,
-    ) -> None:
+    ) -> Result[None, FitsError]:
         """Initialize an empty directory as a fits repository.
 
         Args:
@@ -101,10 +117,12 @@ class Repo:
             init_git: When ``True``, initialize a git repository in the root.
             edit_gitignore: When ``True``, create or update ``.gitignore``.
 
+        Returns:
+            ``Ok(None)`` on success, or ``Err(FitsError)`` when libfits reports
+            an operation failure.
+
         Raises:
             RuntimeError: When the session is already closed.
-            FitsError: When libfits reports an operation failure.
-            FitsSchemaError: When the response JSON fails schema validation.
         """
         request = _with_protocol_version(
             "init",
@@ -114,7 +132,11 @@ class Repo:
                 "edit_gitignore": edit_gitignore,
             },
         )
-        _json.call_and_parse("init", self._require_handle(), request)
+        match _json.call_and_parse("init", self._require_handle(), request):
+            case Err(error):
+                return Err(error)
+            case Ok(_):
+                return Ok(None)
 
     def register_node_type(
         self,
@@ -123,7 +145,7 @@ class Repo:
         abstract: bool = False,
         extends: str | None = None,
         create_folder: bool = False,
-    ) -> None:
+    ) -> Result[None, FitsError]:
         """Register a node type in the repository registry.
 
         Args:
@@ -132,10 +154,11 @@ class Repo:
             extends: Optional parent type name for inheritance.
             create_folder: When ``True``, create on-disk folders for the type.
 
+        Returns:
+            ``Ok(None)`` on success, or ``Err(FitsError)`` on failure.
+
         Raises:
             RuntimeError: When the session is already closed.
-            FitsError: When libfits reports an operation failure.
-            FitsSchemaError: When the response JSON fails schema validation.
         """
         request: dict[str, Any] = {
             "type_name": type_name,
@@ -144,7 +167,15 @@ class Repo:
         }
         if extends is not None:
             request["extends"] = extends
-        _json.call_and_parse("register_node_type", self._require_handle(), request)
+        match _json.call_and_parse(
+            "register_node_type",
+            self._require_handle(),
+            request,
+        ):
+            case Err(error):
+                return Err(error)
+            case Ok(_):
+                return Ok(None)
 
     def register_link_type(
         self,
@@ -153,7 +184,7 @@ class Repo:
         out_type: str,
         *,
         create_folder: bool = False,
-    ) -> None:
+    ) -> Result[None, FitsError]:
         """Register a link type in the repository registry.
 
         Args:
@@ -162,10 +193,11 @@ class Repo:
             out_type: Required output node type name.
             create_folder: When ``True``, create on-disk folders for the type.
 
+        Returns:
+            ``Ok(None)`` on success, or ``Err(FitsError)`` on failure.
+
         Raises:
             RuntimeError: When the session is already closed.
-            FitsError: When libfits reports an operation failure.
-            FitsSchemaError: When the response JSON fails schema validation.
         """
         request = {
             "link_type": link_type,
@@ -173,7 +205,15 @@ class Repo:
             "out_type": out_type,
             "create_folder": create_folder,
         }
-        _json.call_and_parse("register_link_type", self._require_handle(), request)
+        match _json.call_and_parse(
+            "register_link_type",
+            self._require_handle(),
+            request,
+        ):
+            case Err(error):
+                return Err(error)
+            case Ok(_):
+                return Ok(None)
 
     def new_node(
         self,
@@ -181,7 +221,7 @@ class Repo:
         *,
         markdown: bool = False,
         title: str | None = None,
-    ) -> str:
+    ) -> Result[str, FitsError]:
         """Create a new node in the repository graph.
 
         Args:
@@ -190,13 +230,10 @@ class Repo:
             title: Optional human-readable node title.
 
         Returns:
-            Allocated node identifier.
+            ``Ok(node_id)`` on success, or ``Err(FitsError)`` on failure.
 
         Raises:
             RuntimeError: When the session is already closed.
-            FitsError: When libfits reports an operation failure.
-            FitsSchemaError: When the response JSON fails schema or invariant
-                validation.
         """
         request: dict[str, Any] = {
             "id_prefix": id_prefix.value,
@@ -204,10 +241,18 @@ class Repo:
         }
         if title is not None:
             request["title"] = title
-        doc = _json.call_and_parse("new_node", self._require_handle(), request)
-        return parse_new_node_id(doc)
+        match _json.call_and_parse("new_node", self._require_handle(), request):
+            case Err(error):
+                return Err(error)
+            case Ok(doc):
+                return parse_new_node_id(doc)
 
-    def new_link(self, link_type: str, in_id: str, out_id: str) -> None:
+    def new_link(
+        self,
+        link_type: str,
+        in_id: str,
+        out_id: str,
+    ) -> Result[None, FitsError]:
         """Create a link between two existing nodes.
 
         Args:
@@ -215,71 +260,89 @@ class Repo:
             in_id: Input endpoint node id.
             out_id: Output endpoint node id.
 
+        Returns:
+            ``Ok(None)`` on success, or ``Err(FitsError)`` on failure.
+
         Raises:
             RuntimeError: When the session is already closed.
-            FitsError: When libfits reports an operation failure.
-            FitsSchemaError: When the response JSON fails schema validation.
         """
         request = {
             "link_type": link_type,
             "in_id": in_id,
             "out_id": out_id,
         }
-        _json.call_and_parse("new_link", self._require_handle(), request)
+        match _json.call_and_parse("new_link", self._require_handle(), request):
+            case Err(error):
+                return Err(error)
+            case Ok(_):
+                return Ok(None)
 
-    def remove(self, object_id: str) -> None:
+    def remove(self, object_id: str) -> Result[None, FitsError]:
         """Remove a node or link by id.
 
         Args:
             object_id: Graph object id to remove.
 
+        Returns:
+            ``Ok(None)`` on success, or ``Err(FitsError)`` on failure.
+
         Raises:
             RuntimeError: When the session is already closed.
-            FitsError: When libfits reports an operation failure.
-            FitsSchemaError: When the response JSON fails schema validation.
         """
         request = {
             "object_id": object_id,
         }
-        _json.call_and_parse("remove", self._require_handle(), request)
+        match _json.call_and_parse("remove", self._require_handle(), request):
+            case Err(error):
+                return Err(error)
+            case Ok(_):
+                return Ok(None)
 
-    def validate(self, *, include_link_endpoints: bool = True) -> ValidateResult:
+    def validate(
+        self,
+        *,
+        include_link_endpoints: bool = True,
+    ) -> Result[ValidateResult, FitsError]:
         """Validate the repository graph.
 
         Args:
             include_link_endpoints: When ``True``, validate link endpoint nodes.
 
         Returns:
-            Validation issues and aggregate severity counts.
+            ``Ok(ValidateResult)`` on success, or ``Err(FitsError)`` on failure.
 
         Raises:
             RuntimeError: When the session is already closed.
-            FitsError: When libfits reports an operation failure.
-            FitsSchemaError: When the response JSON fails schema or invariant
-                validation.
         """
         request = _with_protocol_version(
             "validate",
             {"include_link_endpoints": include_link_endpoints},
         )
-        doc = _json.call_and_parse("validate", self._require_handle(), request)
-        return parse_validate_result(doc)
+        match _json.call_and_parse("validate", self._require_handle(), request):
+            case Err(error):
+                return Err(error)
+            case Ok(doc):
+                return parse_validate_result(doc)
 
-    def output_graph(self, *, pretty_print: bool = False) -> dict[str, Any]:
+    def output_graph(
+        self,
+        *,
+        pretty_print: bool = False,
+    ) -> Result[dict[str, Any], FitsError]:
         """Serialize the repository graph.
 
         Args:
             pretty_print: When ``True``, request pretty-printed JSON from libfits.
 
         Returns:
-            Graph object from the libfits response (JSON-serializable dict).
+            ``Ok(graph)`` on success, or ``Err(FitsError)`` on failure.
 
         Raises:
             RuntimeError: When the session is already closed.
-            FitsError: When libfits reports an operation failure.
-            FitsSchemaError: When the response JSON fails schema or invariant
-                validation.
         """
         request = _with_protocol_version("output_graph", {"pretty_print": pretty_print})
-        doc = _json.call_and_parse("output_graph", self._require_handle(), request)
-        return parse_output_graph(doc)
+        match _json.call_and_parse("output_graph", self._require_handle(), request):
+            case Err(error):
+                return Err(error)
+            case Ok(doc):
+                return parse_output_graph(doc)

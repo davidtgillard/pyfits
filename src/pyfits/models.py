@@ -6,10 +6,14 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from pyfits._errors import FitsSchemaError
+from pyfits._errors import FitsError, FitsSchemaError
+from pyfits.result import Err, Ok, Result
 
 _OBJECT_TYPE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
-"""Object type name pattern: ASCII letter, then letters, digits, underscores, or hyphens."""
+"""Object type name pattern.
+
+ASCII letter first, then letters, digits, underscores, or hyphens.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,56 +94,68 @@ class ValidateResult:
     protocol_version: int | None = None
 
 
-def _require_dict(value: Any, field: str, operation: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        msg = f"{operation} success response missing {field}"
-        raise FitsSchemaError(
-            msg,
+def _schema_err(message: str, *, operation: str) -> Err[FitsError]:
+    return Err(
+        FitsSchemaError(
+            message,
             operation=operation,
             schema_id="invariant",
         )
-    return value
+    )
 
 
-def parse_validate_result(doc: dict[str, Any]) -> ValidateResult:
+def _require_dict(
+    value: Any,
+    field: str,
+    operation: str,
+) -> Result[dict[str, Any], FitsError]:
+    if not isinstance(value, dict):
+        msg = f"{operation} success response missing {field}"
+        return _schema_err(msg, operation=operation)
+    return Ok(value)
+
+
+def parse_validate_result(doc: dict[str, Any]) -> Result[ValidateResult, FitsError]:
     """Build a :class:`ValidateResult` from a schema-validated success document.
 
     Args:
         doc: Parsed ``validate`` success response with ``ok: true``.
 
     Returns:
-        Structured validation issues and summary counts.
-
-    Raises:
-        FitsSchemaError: When required fields are missing or have invalid types.
+        ``Ok(ValidateResult)`` on success, or ``Err(FitsError)`` when invariants
+        fail.
     """
     operation = "validate"
     if doc.get("ok") is not True:
         msg = "expected ok=true validate response"
-        raise FitsSchemaError(msg, operation=operation, schema_id="invariant")
+        return _schema_err(msg, operation=operation)
 
     issues_raw = doc.get("validation_issues")
     if not isinstance(issues_raw, list):
         msg = "validate success response missing validation_issues array"
-        raise FitsSchemaError(msg, operation=operation, schema_id="invariant")
+        return _schema_err(msg, operation=operation)
 
     summary_raw = doc.get("summary")
-    summary_dict = _require_dict(summary_raw, "summary", operation)
+    match _require_dict(summary_raw, "summary", operation):
+        case Err(error):
+            return Err(error)
+        case Ok(summary_dict):
+            pass
 
     validation_issues: list[ValidationIssue] = []
     for item in issues_raw:
         if not isinstance(item, dict):
             msg = "validation issue must be an object"
-            raise FitsSchemaError(msg, operation=operation, schema_id="invariant")
+            return _schema_err(msg, operation=operation)
         sev = item.get("severity")
         code = item.get("code")
         message = item.get("message")
         if sev not in ("info", "warn", "error"):
             msg = f"invalid validation issue severity: {sev!r}"
-            raise FitsSchemaError(msg, operation=operation, schema_id="invariant")
+            return _schema_err(msg, operation=operation)
         if not isinstance(code, str) or not isinstance(message, str):
             msg = "validation issue missing code or message"
-            raise FitsSchemaError(msg, operation=operation, schema_id="invariant")
+            return _schema_err(msg, operation=operation)
         oid = item.get("object_id")
         object_id = oid if isinstance(oid, str) else None
         validation_issues.append(
@@ -151,63 +167,74 @@ def parse_validate_result(doc: dict[str, Any]) -> ValidateResult:
             )
         )
 
-    def _int_field(name: str) -> int:
+    def _int_field(name: str) -> Result[int, FitsError]:
         val = summary_dict.get(name)
         if not isinstance(val, int):
             msg = f"summary.{name} must be an integer"
-            raise FitsSchemaError(msg, operation=operation, schema_id="invariant")
-        return val
+            return _schema_err(msg, operation=operation)
+        return Ok(val)
+
+    fields: dict[str, int] = {}
+    for name in (
+        "total_validation_issues",
+        "info_count",
+        "warning_count",
+        "error_count",
+    ):
+        match _int_field(name):
+            case Err(error):
+                return Err(error)
+            case Ok(value):
+                fields[name] = value
 
     summary = ValidateSummary(
-        total_validation_issues=_int_field("total_validation_issues"),
-        info_count=_int_field("info_count"),
-        warning_count=_int_field("warning_count"),
-        error_count=_int_field("error_count"),
+        total_validation_issues=fields["total_validation_issues"],
+        info_count=fields["info_count"],
+        warning_count=fields["warning_count"],
+        error_count=fields["error_count"],
     )
     proto = doc.get("protocol_version")
     protocol_version = proto if isinstance(proto, int) else None
-    return ValidateResult(
-        validation_issues=tuple(validation_issues),
-        summary=summary,
-        protocol_version=protocol_version,
+    return Ok(
+        ValidateResult(
+            validation_issues=tuple(validation_issues),
+            summary=summary,
+            protocol_version=protocol_version,
+        )
     )
 
 
-def parse_new_node_id(doc: dict[str, Any]) -> str:
+def parse_new_node_id(doc: dict[str, Any]) -> Result[str, FitsError]:
     """Return ``node_id`` from a ``new_node`` success response.
 
     Args:
         doc: Parsed ``new_node`` success response with ``ok: true``.
 
     Returns:
-        Allocated node identifier string.
-
-    Raises:
-        FitsSchemaError: When ``node_id`` is missing or not a string.
+        ``Ok(node_id)`` on success, or ``Err(FitsError)`` when ``node_id`` is
+        missing or invalid.
     """
     operation = "new_node"
     node_id = doc.get("node_id")
     if not isinstance(node_id, str):
         msg = "new_node success response missing node_id"
-        raise FitsSchemaError(msg, operation=operation, schema_id="invariant")
-    return node_id
+        return _schema_err(msg, operation=operation)
+    return Ok(node_id)
 
 
-def parse_output_graph(doc: dict[str, Any]) -> dict[str, Any]:
+def parse_output_graph(doc: dict[str, Any]) -> Result[dict[str, Any], FitsError]:
     """Return the graph object from an ``output_graph`` success response.
 
     Args:
         doc: Parsed ``output_graph`` success response with ``ok: true``.
 
     Returns:
-        Graph object from the libfits response (JSON-serializable mapping).
-
-    Raises:
-        FitsSchemaError: When ``graph`` is missing or not an object.
+        ``Ok(graph)`` on success, or ``Err(FitsError)`` when ``graph`` is missing
+        or invalid.
     """
     operation = "output_graph"
     graph = doc.get("graph")
     if not isinstance(graph, dict):
         msg = "output_graph success response missing graph object"
-        raise FitsSchemaError(msg, operation=operation, schema_id="invariant")
-    return graph
+        return _schema_err(msg, operation=operation)
+    return Ok(graph)

@@ -15,6 +15,7 @@ from pyfits.models import (
     parse_output_graph,
     parse_validate_result,
 )
+from pyfits.result import Err, Ok
 
 _VALID_SUMMARY: dict[str, int] = {
     "total_validation_issues": 3,
@@ -121,9 +122,11 @@ def _valid_validate_doc(**overrides: Any) -> dict[str, Any]:
         ),
     ],
 )
-def test_parse_validate_result_raises(doc: dict[str, Any], match: str) -> None:
-    with pytest.raises(FitsSchemaError, match=match):
-        parse_validate_result(doc)
+def test_parse_validate_result_returns_err(doc: dict[str, Any], match: str) -> None:
+    result = parse_validate_result(doc)
+    assert isinstance(result, Err)
+    assert isinstance(result.err_value, FitsSchemaError)
+    assert match in str(result.err_value)
 
 
 @pytest.mark.parametrize(
@@ -154,12 +157,13 @@ def test_parse_validate_result_success(
     protocol_version: int | None,
 ) -> None:
     result = parse_validate_result(doc)
-    assert isinstance(result, ValidateResult)
-    assert result.protocol_version == protocol_version
+    assert isinstance(result, Ok)
+    assert isinstance(result.ok_value, ValidateResult)
+    assert result.ok_value.protocol_version == protocol_version
     if object_id is not None:
-        assert result.validation_issues[0].object_id == object_id
+        assert result.ok_value.validation_issues[0].object_id == object_id
     else:
-        assert result.validation_issues[0].object_id is None
+        assert result.ok_value.validation_issues[0].object_id is None
 
 
 @pytest.mark.parametrize(
@@ -171,22 +175,27 @@ def test_parse_validate_result_success(
         (parse_output_graph, {"ok": True, "graph": []}, "missing graph object"),
     ],
 )
-def test_parser_raises(
+def test_parser_returns_err(
     parser: Callable[[dict[str, Any]], Any],
     doc: dict[str, Any],
     match: str,
 ) -> None:
-    with pytest.raises(FitsSchemaError, match=match):
-        parser(doc)
+    result = parser(doc)
+    assert isinstance(result, Err)
+    assert match in str(result.err_value)
 
 
 def test_parse_new_node_id_success() -> None:
-    assert parse_new_node_id({"ok": True, "node_id": "REQ-42"}) == "REQ-42"
+    result = parse_new_node_id({"ok": True, "node_id": "REQ-42"})
+    assert isinstance(result, Ok)
+    assert result.ok_value == "REQ-42"
 
 
 def test_parse_output_graph_success() -> None:
     graph = {"nodes": [], "links": []}
-    assert parse_output_graph({"ok": True, "graph": graph}) == graph
+    result = parse_output_graph({"ok": True, "graph": graph})
+    assert isinstance(result, Ok)
+    assert result.ok_value == graph
 
 
 @pytest.mark.parametrize(

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from support import unwrap
+
 from pyfits import _native as native
 from pyfits import (
     api_version_minor,
@@ -19,11 +21,11 @@ def test_lib_loads() -> None:
 
 def test_api_version() -> None:
     packed = int(native.lib().FITS_api_version())
-    assert libfits_version_packed() == packed
-    assert libfits_version_major() == (packed >> 16)
-    assert api_version_minor() == (packed & 0xFFFF)
+    assert unwrap(libfits_version_packed()) == packed
+    assert unwrap(libfits_version_major()) == (packed >> 16)
+    assert unwrap(api_version_minor()) == (packed & 0xFFFF)
 
 
 def test_version_string() -> None:
-    assert libfits_version_string()
-    assert lib_path().is_file()
+    assert unwrap(libfits_version_string())
+    assert unwrap(lib_path()).is_file()

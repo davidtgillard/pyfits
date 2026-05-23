@@ -6,22 +6,24 @@ from typing import Any
 
 import jsonschema
 
-from pyfits._errors import FitsSchemaError
+from pyfits._errors import FitsError, FitsSchemaError
 from pyfits._schemas import SUCCESS_SCHEMA_BY_OPERATION, validate_document
+from pyfits.result import Err, Ok, Result
 
 
-def validate_response(operation: str, doc: dict[str, Any]) -> None:
+def validate_response(operation: str, doc: dict[str, Any]) -> Result[None, FitsError]:
     """Validate a parsed JSON response for an operation.
 
     Args:
         operation: libfits JSON operation name (e.g. ``validate``, ``new_node``).
         doc: Parsed response object.
 
+    Returns:
+        ``Ok(None)`` when validation succeeds, or ``Err(FitsSchemaError)`` when
+        validation fails.
+
     Raises:
-        FitsSchemaError: When validation fails.
         KeyError: When ``operation`` is unknown for success response validation.
-        jsonschema.ValidationError: Propagated from :func:`validate_document`
-            before being wrapped in :class:`FitsSchemaError`.
     """
     if doc.get("ok") is False:
         schema_id = "error_response"
@@ -31,13 +33,18 @@ def validate_response(operation: str, doc: dict[str, Any]) -> None:
     else:
         schema_id = SUCCESS_SCHEMA_BY_OPERATION[operation]
 
-    try:
-        validate_document(schema_id, doc)
-    except jsonschema.ValidationError as exc:
-        msg = f"{operation} response failed schema {schema_id}: {exc.message}"
-        raise FitsSchemaError(
-            msg,
-            operation=operation,
-            schema_id=schema_id,
-            validation_message=exc.message,
-        ) from exc
+    match validate_document(schema_id, doc):
+        case Ok(_):
+            return Ok(None)
+        case Err(error):
+            if isinstance(error, jsonschema.ValidationError):
+                msg = f"{operation} response failed schema {schema_id}: {error.message}"
+                return Err(
+                    FitsSchemaError(
+                        msg,
+                        operation=operation,
+                        schema_id=schema_id,
+                        validation_message=error.message,
+                    )
+                )
+            return Err(error)

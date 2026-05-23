@@ -8,11 +8,15 @@ Public exports:
     ObjectTypeName:
         Validated object type name for ``new_node``.
 
+    Result, Ok, Err:
+        Generic result type for operational libfits failures (from the
+        `result <https://pypi.org/project/result/>`_ package).
+
     ValidateResult, ValidateSummary, ValidationIssue:
         Typed models for ``validate`` responses.
 
     FitsError, FitsSchemaError, FitsStatus:
-        Error types and stable libfits status codes.
+        Error payload types for ``Err`` variants.
 
     lib_path, libfits_version_string:
         Shared library location and version string.
@@ -41,6 +45,7 @@ from pyfits.models import (
     ValidationIssue,
 )
 from pyfits.repo import Repo
+from pyfits.result import Err, Ok, Result, is_err, is_ok
 
 try:
     __version__ = version("pyfits")
@@ -48,15 +53,20 @@ except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
 __all__ = [
+    "Err",
     "FitsError",
     "FitsSchemaError",
     "FitsStatus",
     "ObjectTypeName",
+    "Ok",
     "Repo",
+    "Result",
     "ValidateResult",
     "ValidateSummary",
     "ValidationIssue",
     "__version__",
+    "is_err",
+    "is_ok",
     "libfits_version_major",
     "api_version_minor",
     "libfits_version_packed",
