@@ -1,4 +1,14 @@
-"""Public access to libfits JSON Schemas."""
+"""Public access to libfits JSON Schemas.
+
+Constants:
+
+    OK_TRUE_SCHEMA:
+        Minimal success schema requiring only ``{"ok": true}``.
+
+    SUCCESS_SCHEMA_BY_OPERATION:
+        Maps libfits operation names to schema identifiers used for success
+        response validation.
+"""
 
 from __future__ import annotations
 

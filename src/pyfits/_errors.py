@@ -103,7 +103,15 @@ class FitsSchemaError(FitsError):
 
 
 def status_from_int(value: int) -> FitsStatus | None:
-    """Map a C FitsStatus integer to FitsStatus, or None if unknown."""
+    """Map a C status integer to :class:`FitsStatus`.
+
+    Args:
+        value: Raw status code returned by libfits.
+
+    Returns:
+        Matching :class:`FitsStatus` member, or ``None`` when ``value`` is not
+        a known status code.
+    """
     try:
         return FitsStatus(value)
     except ValueError:
@@ -111,7 +119,15 @@ def status_from_int(value: int) -> FitsStatus | None:
 
 
 def raise_for_error_document(doc: dict[str, Any]) -> None:
-    """Raise FitsError when doc is a schema-validated ``ok: false`` response."""
+    """Raise :class:`FitsError` for a schema-validated ``ok: false`` response.
+
+    Args:
+        doc: Parsed libfits JSON response object.
+
+    Raises:
+        FitsError: When ``doc`` has ``ok: false`` with a valid or invalid error
+            object shape.
+    """
     if doc.get("ok") is not False:
         return
     err = doc.get("error")
@@ -127,7 +143,15 @@ def raise_for_error_document(doc: dict[str, Any]) -> None:
 
 
 def raise_for_status(status: int, last_error: str) -> None:
-    """Raise FitsError for a negative C status when no JSON body was returned."""
+    """Raise :class:`FitsError` for a negative C status without a JSON body.
+
+    Args:
+        status: Raw status code returned by libfits.
+        last_error: Thread-local diagnostic string from :func:`last_error`.
+
+    Raises:
+        FitsError: When ``status`` is not :attr:`FitsStatus.OK`.
+    """
     if status == FitsStatus.OK:
         return
     st = status_from_int(status)

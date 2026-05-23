@@ -1,4 +1,17 @@
-"""Load and cache JSON Schemas embedded in libfits."""
+"""Load and cache JSON Schemas embedded in libfits.
+
+Constants:
+
+    OK_TRUE_SCHEMA:
+        pyfits-local minimal success schema when libfits has no response schema.
+
+    OUTPUT_GRAPH_SUCCESS_SCHEMA:
+        pyfits-local success schema for ``output_graph`` responses.
+
+    SUCCESS_SCHEMA_BY_OPERATION:
+        Maps libfits operation names to schema identifiers for success
+        responses.
+"""
 
 from __future__ import annotations
 
@@ -26,7 +39,6 @@ _LIBFITS_SCHEMA_IDS: tuple[str, ...] = (
     "error_response",
 )
 
-# pyfits-local minimal success schema when libfits has no response schema.
 OK_TRUE_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -59,7 +71,14 @@ SUCCESS_SCHEMA_BY_OPERATION: dict[str, str] = {
 
 
 def schema_ids() -> tuple[str, ...]:
-    """Return known schema identifiers (includes pyfits-local ``ok_true``)."""
+    """Return known schema identifiers.
+
+    Includes libfits embedded schema ids plus pyfits-local ``ok_true`` and
+    ``output_graph_success``.
+
+    Returns:
+        Tuple of schema identifier strings.
+    """
     return _LIBFITS_SCHEMA_IDS + ("ok_true", "output_graph_success")
 
 
@@ -107,10 +126,26 @@ def validator(schema_id: str) -> Draft202012Validator:
 
     Returns:
         Compiled Draft 2020-12 validator for the schema.
+
+    Raises:
+        KeyError: Unknown schema id.
+        RuntimeError: libfits schema accessor returned NULL.
+        TypeError: Parsed schema is not a JSON object.
     """
     return Draft202012Validator(schema_dict(schema_id))
 
 
 def validate_document(schema_id: str, doc: dict[str, Any]) -> None:
-    """Validate doc against schema_id; raises jsonschema.ValidationError on failure."""
+    """Validate a document against a schema.
+
+    Args:
+        schema_id: Schema identifier passed to :func:`schema_dict`.
+        doc: JSON object to validate.
+
+    Raises:
+        KeyError: Unknown schema id.
+        RuntimeError: libfits schema accessor returned NULL.
+        TypeError: Parsed schema is not a JSON object.
+        jsonschema.ValidationError: When ``doc`` does not match the schema.
+    """
     validate(instance=doc, schema=schema_dict(schema_id))

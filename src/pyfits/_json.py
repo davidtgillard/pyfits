@@ -16,7 +16,14 @@ def _c_operation(operation: str) -> str:
 
 
 def dumps_request(payload: dict[str, Any] | None) -> bytes | None:
-    """Encode a request dict as UTF-8 JSON bytes."""
+    """Encode a request dict as UTF-8 JSON bytes.
+
+    Args:
+        payload: Request object to serialize, or ``None`` for no request body.
+
+    Returns:
+        Compact UTF-8 JSON bytes, or ``None`` when ``payload`` is ``None``.
+    """
     if payload is None:
         return None
     return json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -27,10 +34,19 @@ def call_and_parse(
     handle: Any,
     request: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """Call libfits JSON API, validate response, return parsed dict.
+    """Call a libfits JSON API operation and return the parsed response.
+
+    Args:
+        operation: libfits operation name (e.g. ``validate``, ``new_node``).
+        handle: Open repository session handle.
+        request: Optional request object serialized as JSON.
+
+    Returns:
+        Parsed response object after schema validation.
 
     Raises:
-        FitsError: On negative status or ``ok: false`` response.
+        FitsError: On negative C status, invalid JSON, non-object response, or
+            ``ok: false`` response body.
         FitsSchemaError: When response JSON fails schema validation.
     """
     c_op = _c_operation(operation)

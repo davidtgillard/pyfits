@@ -8,11 +8,19 @@ from typing import Any, Literal
 from pyfits._errors import FitsSchemaError
 
 Severity = Literal["info", "warn", "error"]
+"""Validation issue severity level reported by libfits."""
 
 
 @dataclass(frozen=True, slots=True)
 class ValidationIssue:
-    """A single validation issue reported by ``validate``."""
+    """A single validation issue reported by ``validate``.
+
+    Attributes:
+        severity: Issue severity level.
+        code: Machine-readable issue code from libfits.
+        message: Human-readable issue description.
+        object_id: Optional graph object id associated with the issue.
+    """
 
     severity: Severity
     code: str
@@ -22,7 +30,14 @@ class ValidationIssue:
 
 @dataclass(frozen=True, slots=True)
 class ValidateSummary:
-    """Aggregate validation issue counts."""
+    """Aggregate validation issue counts.
+
+    Attributes:
+        total_validation_issues: Total number of issues across all severities.
+        info_count: Number of informational issues.
+        warning_count: Number of warning issues.
+        error_count: Number of error issues.
+    """
 
     total_validation_issues: int
     info_count: int
@@ -32,7 +47,13 @@ class ValidateSummary:
 
 @dataclass(frozen=True, slots=True)
 class ValidateResult:
-    """Result of repository validation."""
+    """Result of repository validation.
+
+    Attributes:
+        validation_issues: Individual issues reported by libfits.
+        summary: Aggregate counts by severity.
+        protocol_version: Optional protocol version echoed by libfits.
+    """
 
     validation_issues: tuple[ValidationIssue, ...]
     summary: ValidateSummary
@@ -51,7 +72,17 @@ def _require_dict(value: Any, field: str, operation: str) -> dict[str, Any]:
 
 
 def parse_validate_result(doc: dict[str, Any]) -> ValidateResult:
-    """Build ValidateResult from a schema-validated success document."""
+    """Build a :class:`ValidateResult` from a schema-validated success document.
+
+    Args:
+        doc: Parsed ``validate`` success response with ``ok: true``.
+
+    Returns:
+        Structured validation issues and summary counts.
+
+    Raises:
+        FitsSchemaError: When required fields are missing or have invalid types.
+    """
     operation = "validate"
     if doc.get("ok") is not True:
         msg = "expected ok=true validate response"
@@ -113,7 +144,17 @@ def parse_validate_result(doc: dict[str, Any]) -> ValidateResult:
 
 
 def parse_new_node_id(doc: dict[str, Any]) -> str:
-    """Return node_id from a new_node success response."""
+    """Return ``node_id`` from a ``new_node`` success response.
+
+    Args:
+        doc: Parsed ``new_node`` success response with ``ok: true``.
+
+    Returns:
+        Allocated node identifier string.
+
+    Raises:
+        FitsSchemaError: When ``node_id`` is missing or not a string.
+    """
     operation = "new_node"
     node_id = doc.get("node_id")
     if not isinstance(node_id, str):
@@ -123,7 +164,17 @@ def parse_new_node_id(doc: dict[str, Any]) -> str:
 
 
 def parse_output_graph(doc: dict[str, Any]) -> dict[str, Any]:
-    """Return graph object from output_graph success response."""
+    """Return the graph object from an ``output_graph`` success response.
+
+    Args:
+        doc: Parsed ``output_graph`` success response with ``ok: true``.
+
+    Returns:
+        Graph object from the libfits response (JSON-serializable mapping).
+
+    Raises:
+        FitsSchemaError: When ``graph`` is missing or not an object.
+    """
     operation = "output_graph"
     graph = doc.get("graph")
     if not isinstance(graph, dict):

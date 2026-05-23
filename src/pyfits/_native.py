@@ -18,7 +18,13 @@ _LIB: CDLL | None = None
 
 
 class FitsRepoOpenOptions(ctypes.Structure):
-    """C struct FitsRepoOpenOptions."""
+    """C struct ``FitsRepoOpenOptions`` passed to ``FITS_CORE_repo_open``.
+
+    Attributes:
+        struct_size: Size of this structure in bytes.
+        repo_root: NUL-terminated repository root path.
+        registry_snapshot_path: Optional NUL-terminated registry snapshot path.
+    """
 
     _fields_: ClassVar[list[tuple[str, type]]] = [
         ("struct_size", ctypes.c_uint32),
@@ -126,12 +132,26 @@ def _configure_lib(lib: CDLL) -> None:
 
 
 def lib() -> CDLL:
-    """Return the loaded libfits CDLL."""
+    """Return the loaded libfits CDLL.
+
+    Returns:
+        Loaded and configured libfits shared library handle.
+
+    Raises:
+        OSError: When the libfits shared library cannot be found or loaded.
+    """
     return _load_library()
 
 
 def lib_path() -> Path:
-    """Return the path to the loaded libfits shared library."""
+    """Return the path to the libfits shared library.
+
+    Returns:
+        Filesystem path to the first discovered libfits shared library.
+
+    Raises:
+        OSError: When no libfits shared library can be found.
+    """
     for candidate in _repo_root_candidates():
         if candidate.is_file():
             return candidate
@@ -148,12 +168,27 @@ def _decode_c_string(raw: bytes | int | None) -> str:
 
 
 def version_string() -> str:
-    """Return libfits package version string."""
+    """Return the libfits package version string.
+
+    Returns:
+        Version string reported by ``FITS_version_string()``.
+
+    Raises:
+        OSError: When the libfits shared library cannot be found or loaded.
+    """
     return _decode_c_string(lib().FITS_version_string())
 
 
 def last_error() -> str:
-    """Return thread-local libfits diagnostic."""
+    """Return the thread-local libfits diagnostic string.
+
+    Returns:
+        Most recent libfits error message for the current thread, or an empty
+        string when no diagnostic is available.
+
+    Raises:
+        OSError: When the libfits shared library cannot be found or loaded.
+    """
     return _decode_c_string(lib().FITS_last_error())
 
 
@@ -162,7 +197,20 @@ def open_repo(
     *,
     registry_snapshot: str | bytes | None = None,
 ) -> ctypes.c_void_p:
-    """Open a FitsRepo session."""
+    """Open a FitsRepo session.
+
+    Args:
+        repo_root: Repository root path as UTF-8 text or bytes.
+        registry_snapshot: Optional registry snapshot path as UTF-8 text or
+            bytes.
+
+    Returns:
+        Opaque repository session handle.
+
+    Raises:
+        OSError: When the libfits shared library cannot be found or loaded.
+        FitsError: When ``FITS_CORE_repo_open`` returns a null handle.
+    """
     root_b = repo_root if isinstance(repo_root, bytes) else repo_root.encode("utf-8")
     snap_b: bytes | None = None
     if registry_snapshot is not None:
@@ -183,7 +231,14 @@ def open_repo(
 
 
 def close_repo(handle: ctypes.c_void_p) -> None:
-    """Close a FitsRepo session."""
+    """Close a FitsRepo session.
+
+    Args:
+        handle: Repository session handle returned by :func:`open_repo`.
+
+    Raises:
+        OSError: When the libfits shared library cannot be found or loaded.
+    """
     lib().FITS_CORE_repo_close(handle)
 
 
@@ -192,7 +247,22 @@ def call_json(
     handle: ctypes.c_void_p,
     request_json: bytes | None,
 ) -> tuple[int, str]:
-    """Invoke a FITS_* JSON function and return (status, response_text)."""
+    """Invoke a ``FITS_*`` JSON function and return status and response text.
+
+    Args:
+        operation: C function suffix after ``FITS_`` (e.g. ``validate``,
+            ``remove_obj``).
+        handle: Open repository session handle.
+        request_json: Optional compact UTF-8 JSON request body.
+
+    Returns:
+        Tuple of ``(status_code, response_text)``. ``response_text`` is empty
+        when libfits returns no JSON body.
+
+    Raises:
+        OSError: When the libfits shared library cannot be found or loaded.
+        FitsError: When libfits returns a negative status with no JSON body.
+    """
     fn = cast(
         Callable[..., int],
         getattr(lib(), f"FITS_{operation}"),

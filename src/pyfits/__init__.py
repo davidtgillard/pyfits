@@ -1,4 +1,25 @@
-"""Python bindings for libfits (fits graph repository engine)."""
+"""Python bindings for libfits (fits graph repository engine).
+
+Public exports:
+
+    Repo:
+        Session API for opening and mutating a fits repository.
+
+    ValidateResult, ValidateSummary, ValidationIssue:
+        Typed models for ``validate`` responses.
+
+    FitsError, FitsSchemaError, FitsStatus:
+        Error types and stable libfits status codes.
+
+    lib_path, libfits_version_string:
+        Shared library location and version string.
+
+    libfits_version_major, api_version_minor, libfits_version_packed:
+        Loaded libfits C ABI version components.
+
+    __version__:
+        Installed pyfits package version from distribution metadata.
+"""
 
 from importlib.metadata import PackageNotFoundError, version
 
