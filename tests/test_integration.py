@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from pyfits import FitsError, Repo
+from pyfits import FitsError, ObjectTypeName, Repo
 
 
 @pytest.fixture
@@ -30,13 +30,13 @@ def test_init_twice_raises(repo_dir: Path) -> None:
 
 
 def test_new_node(initialized_repo: Repo) -> None:
-    node_id = initialized_repo.new_node("REQ", title="Hello")
+    node_id = initialized_repo.new_node(ObjectTypeName("REQ"), title="Hello")
     assert node_id.startswith("REQ")
     initialized_repo.close()
 
 
 def test_new_node_without_title(initialized_repo: Repo) -> None:
-    node_id = initialized_repo.new_node("REQ")
+    node_id = initialized_repo.new_node(ObjectTypeName("REQ"))
     assert node_id.startswith("REQ")
     initialized_repo.close()
 
@@ -53,14 +53,14 @@ def test_register_link_type(repo_with_link_type: Repo) -> None:
 
 
 def test_new_link(repo_with_link_type: Repo) -> None:
-    in_id = repo_with_link_type.new_node("REQ")
-    out_id = repo_with_link_type.new_node("REQ")
+    in_id = repo_with_link_type.new_node(ObjectTypeName("REQ"))
+    out_id = repo_with_link_type.new_node(ObjectTypeName("REQ"))
     repo_with_link_type.new_link("depends", in_id, out_id)
     repo_with_link_type.close()
 
 
 def test_remove_node(initialized_repo: Repo) -> None:
-    node_id = initialized_repo.new_node("REQ")
+    node_id = initialized_repo.new_node(ObjectTypeName("REQ"))
     initialized_repo.remove(node_id)
     initialized_repo.close()
 

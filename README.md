@@ -41,13 +41,13 @@ uv sync --all-groups
 
 ```python
 from pathlib import Path
-from pyfits import Repo
+from pyfits import ObjectTypeName, Repo
 
 with Repo(Path("my-product")) as repo:
     repo.init()
     repo.register_node_type("req", abstract=True)
     repo.register_node_type("REQ", extends="req")
-    node_id = repo.new_node("REQ", title="First requirement")
+    node_id = repo.new_node(ObjectTypeName("REQ"), title="First requirement")
     result = repo.validate()
     print(result.summary.error_count, len(result.validation_issues))
 ```

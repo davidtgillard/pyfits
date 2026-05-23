@@ -5,6 +5,9 @@ Public exports:
     Repo:
         Session API for opening and mutating a fits repository.
 
+    ObjectTypeName:
+        Validated object type name for ``new_node``.
+
     ValidateResult, ValidateSummary, ValidationIssue:
         Typed models for ``validate`` responses.
 
@@ -31,7 +34,12 @@ from pyfits._version_abi import (
     libfits_version_major,
     libfits_version_packed,
 )
-from pyfits.models import ValidateResult, ValidateSummary, ValidationIssue
+from pyfits.models import (
+    ObjectTypeName,
+    ValidateResult,
+    ValidateSummary,
+    ValidationIssue,
+)
 from pyfits.repo import Repo
 
 try:
@@ -43,6 +51,7 @@ __all__ = [
     "FitsError",
     "FitsSchemaError",
     "FitsStatus",
+    "ObjectTypeName",
     "Repo",
     "ValidateResult",
     "ValidateSummary",

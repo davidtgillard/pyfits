@@ -9,6 +9,7 @@ import pytest
 
 from pyfits._errors import FitsSchemaError
 from pyfits.models import (
+    ObjectTypeName,
     ValidateResult,
     parse_new_node_id,
     parse_output_graph,
@@ -186,3 +187,39 @@ def test_parse_new_node_id_success() -> None:
 def test_parse_output_graph_success() -> None:
     graph = {"nodes": [], "links": []}
     assert parse_output_graph({"ok": True, "graph": graph}) == graph
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "REQ",
+        "req",
+        "sys",
+        "REQ_foo",
+        "My-Subsystem",
+        "a1",
+        "Z",
+        "REQ-1",
+    ],
+)
+def test_object_type_name_accepts_valid_values(value: str) -> None:
+    type_name = ObjectTypeName(value)
+    assert type_name.value == value
+    assert str(type_name) == value
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "1abc",
+        "123",
+        "_foo",
+        "hello world",
+        "REQ.foo",
+        "-My-Subsystem",
+    ],
+)
+def test_object_type_name_rejects_invalid_values(value: str) -> None:
+    with pytest.raises(ValueError, match="object type name must"):
+        ObjectTypeName(value)

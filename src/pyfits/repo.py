@@ -8,6 +8,7 @@ from typing import Any
 
 from pyfits import _json, _native
 from pyfits.models import (
+    ObjectTypeName,
     ValidateResult,
     parse_new_node_id,
     parse_output_graph,
@@ -176,7 +177,7 @@ class Repo:
 
     def new_node(
         self,
-        id_prefix: str,
+        id_prefix: ObjectTypeName,
         *,
         markdown: bool = False,
         title: str | None = None,
@@ -184,7 +185,7 @@ class Repo:
         """Create a new node in the repository graph.
 
         Args:
-            id_prefix: Node type prefix used to allocate the new id.
+            id_prefix: Registered object type name used to allocate the new id.
             markdown: When ``True``, create the node as markdown-backed content.
             title: Optional human-readable node title.
 
@@ -198,7 +199,7 @@ class Repo:
                 validation.
         """
         request: dict[str, Any] = {
-            "id_prefix": id_prefix,
+            "id_prefix": id_prefix.value,
             "markdown": markdown,
         }
         if title is not None:

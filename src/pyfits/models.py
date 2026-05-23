@@ -1,11 +1,41 @@
-"""Typed models for libfits JSON responses."""
+"""Typed models for libfits requests and JSON responses."""
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
 from pyfits._errors import FitsSchemaError
+
+_OBJECT_TYPE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
+"""Object type name pattern: ASCII letter, then letters, digits, underscores, or hyphens."""
+
+
+@dataclass(frozen=True, slots=True)
+class ObjectTypeName:
+    """Validated object type name for node allocation.
+
+    Type name strings must be non-empty, start with an ASCII letter, and contain
+    only ASCII letters, digits, underscores, and hyphens thereafter.
+
+    Attributes:
+        value: Validated type name string sent to libfits as ``id_prefix``.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        if not _OBJECT_TYPE_NAME_RE.fullmatch(self.value):
+            msg = (
+                "object type name must start with a letter and contain only "
+                "letters, digits, underscores, and hyphens"
+            )
+            raise ValueError(msg)
+
+    def __str__(self) -> str:
+        return self.value
+
 
 Severity = Literal["info", "warn", "error"]
 """Validation issue severity level reported by libfits."""
