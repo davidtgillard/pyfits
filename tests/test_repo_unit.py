@@ -56,6 +56,7 @@ def test_repo_methods_propagate_err(
     assert repo.rename_instance(Id("REQ-1"), Id("REQ-2")).err_value is err
     assert repo.validate().err_value is err
     assert repo.output_graph().err_value is err
+    assert repo.output_graph_as_json().err_value is err
     repo.close()
 
 
@@ -292,7 +293,11 @@ def test_validate_and_output_graph_request_options(
     monkeypatch.setattr("pyfits.repo._json.call_and_parse", capture)
     unwrap(repo.validate(include_nested_subgraphs=False))
     unwrap(repo.output_graph(include_nested=True))
+    unwrap(repo.output_graph_as_json(pretty_print=True, include_nested=True))
     assert captured[0]["include_nested_subgraphs"] is False
     assert captured[0]["protocol_version"] == PROTOCOL_VERSION
     assert captured[1]["include_nested"] is True
+    assert "pretty_print" not in captured[1]
+    assert captured[2]["include_nested"] is True
+    assert "pretty_print" not in captured[2]
     repo.close()

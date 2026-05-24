@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -622,3 +623,34 @@ def parse_output_graph(doc: dict[str, Any]) -> Result[Graph, FitsError]:
         )
 
     return Ok(Graph(nodes=tuple(nodes), edges=tuple(edges)))
+
+
+def format_output_graph_json(
+    doc: dict[str, Any],
+    *,
+    pretty_print: bool = False,
+) -> Result[str, FitsError]:
+    """Return the graph object from an ``output_graph`` response as JSON text.
+
+    Args:
+        doc: Parsed ``output_graph`` success response with ``ok: true``.
+        pretty_print: When ``True``, indent the JSON for human-readable output.
+
+    Returns:
+        ``Ok(json_text)`` on success, or ``Err(FitsError)`` when the graph
+        object is missing or not JSON-serializable.
+    """
+    operation = "output_graph"
+    graph = doc.get("graph")
+    if not isinstance(graph, dict):
+        msg = "output_graph success response missing graph object"
+        return _schema_err(msg, operation=operation)
+    try:
+        if pretty_print:
+            text = json.dumps(graph, indent=2, ensure_ascii=False) + "\n"
+        else:
+            text = json.dumps(graph, separators=(",", ":"), ensure_ascii=False)
+    except (TypeError, ValueError) as exc:
+        msg = f"output_graph graph is not JSON-serializable: {exc}"
+        return Err(FitsError(msg, code="invalid_json"))
+    return Ok(text)

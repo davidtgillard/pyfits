@@ -125,8 +125,11 @@ def test_rename_instance(initialized_repo: Repo) -> None:
 def test_output_graph(initialized_repo: Repo) -> None:
     graph = unwrap(initialized_repo.output_graph())
     assert isinstance(graph, Graph)
-    pretty = unwrap(initialized_repo.output_graph(pretty_print=True))
-    assert isinstance(pretty, Graph)
+    graph_json = unwrap(initialized_repo.output_graph_as_json())
+    assert '"nodes"' in graph_json
+    assert '"edges"' in graph_json
+    pretty = unwrap(initialized_repo.output_graph_as_json(pretty_print=True))
+    assert "\n" in pretty
     initialized_repo.close()
 
 

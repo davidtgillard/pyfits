@@ -15,6 +15,7 @@ from pyfits.models import (
     ObjectTypeName,
     TargetId,
     ValidateResult,
+    format_output_graph_json,
     parse_new_link_id,
     parse_new_node_id,
     parse_output_graph,
@@ -414,13 +415,11 @@ class Repo:
     def output_graph(
         self,
         *,
-        pretty_print: bool = False,
         include_nested: bool = False,
     ) -> Result[Graph, FitsError]:
         """Serialize the repository graph.
 
         Args:
-            pretty_print: When ``True``, request pretty-printed JSON from libfits.
             include_nested: When ``True``, merge nested nodes and edges into the
                 graph arrays.
 
@@ -433,7 +432,6 @@ class Repo:
         request = _with_protocol_version(
             "output_graph",
             {
-                "pretty_print": pretty_print,
                 "include_nested": include_nested,
             },
         )
@@ -442,4 +440,40 @@ class Repo:
             self._require_handle(),
             request,
             parse_output_graph,
+        )
+
+    def output_graph_as_json(
+        self,
+        *,
+        pretty_print: bool = False,
+        include_nested: bool = False,
+    ) -> Result[str, FitsError]:
+        """Serialize the repository graph as a JSON string.
+
+        Useful for debugging or piping graph JSON into fits tooling.
+
+        Args:
+            pretty_print: When ``True``, indent the JSON for human-readable
+                output.
+            include_nested: When ``True``, merge nested nodes and edges into the
+                graph arrays.
+
+        Returns:
+            ``Ok(json_text)`` containing the graph object on success, or
+            ``Err(FitsError)`` on failure.
+
+        Raises:
+            RuntimeError: When the session is already closed.
+        """
+        request = _with_protocol_version(
+            "output_graph",
+            {
+                "include_nested": include_nested,
+            },
+        )
+        return _call_parsed(
+            "output_graph",
+            self._require_handle(),
+            request,
+            lambda doc: format_output_graph_json(doc, pretty_print=pretty_print),
         )

@@ -90,6 +90,8 @@ viewcode_follow_imported_members = False
 
 
 def setup(app):
+    """Register Sphinx extension hooks for this documentation build."""
+
     def autodoc_skip_member(app, what, name, obj, skip, options):
         if what == "function" and name in ("is_err", "is_ok"):
             return True

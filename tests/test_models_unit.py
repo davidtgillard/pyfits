@@ -14,6 +14,7 @@ from pyfits.models import (
     ObjectTypeName,
     TargetId,
     ValidateResult,
+    format_output_graph_json,
     parse_new_link_id,
     parse_new_node_id,
     parse_output_graph,
@@ -234,6 +235,30 @@ def test_parse_output_graph_success() -> None:
     assert isinstance(graph, Graph)
     assert graph.nodes[0].id == Id("REQ-1")
     assert graph.edges[0].from_id == Id("REQ-1")
+
+
+def test_format_output_graph_json_compact() -> None:
+    graph_doc = {"nodes": [{"id": "REQ-1"}], "edges": []}
+    result = format_output_graph_json({"ok": True, "graph": graph_doc})
+    assert isinstance(result, Ok)
+    assert result.ok_value == '{"nodes":[{"id":"REQ-1"}],"edges":[]}'
+
+
+def test_format_output_graph_json_pretty() -> None:
+    graph_doc = {"nodes": [{"id": "REQ-1"}], "edges": []}
+    result = format_output_graph_json(
+        {"ok": True, "graph": graph_doc},
+        pretty_print=True,
+    )
+    assert isinstance(result, Ok)
+    assert result.ok_value.startswith("{\n")
+    assert result.ok_value.endswith("\n")
+
+
+def test_format_output_graph_json_missing_graph() -> None:
+    result = format_output_graph_json({"ok": True})
+    assert isinstance(result, Err)
+    assert isinstance(result.err_value, FitsSchemaError)
 
 
 def test_parse_output_graph_nested_nodes() -> None:
