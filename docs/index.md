@@ -2,8 +2,9 @@
 
 Python bindings for [libfits](https://github.com/davidtgillard/fits) — the fits graph repository engine (nodes, links, registry).
 
-!!! note
-    This package is **not** astronomy FITS file I/O (historical Astropy `pyfits`).
+```{note}
+This package is **not** astronomy FITS file I/O (historical Astropy `pyfits`).
+```
 
 ## Quick start
 
@@ -38,4 +39,15 @@ Operational methods return `Result[..., FitsError]`. Check `Ok` / `Err` instead 
 
 ## API reference
 
-See the [API Reference](api/index.md) section for auto-generated documentation of all public symbols.
+See the [API Reference](api/index.rst) section for auto-generated documentation of all public symbols.
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+
+getting-started
+usage
+errors
+threading
+api/index
+```

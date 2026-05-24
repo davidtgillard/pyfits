@@ -35,8 +35,8 @@ Build and preview the docs locally:
 
 ```bash
 uv sync --group docs
-uv run mkdocs serve   # preview at http://127.0.0.1:8000
-uv run mkdocs build --strict
+uv run sphinx-autobuild docs docs/_build/html   # preview at http://127.0.0.1:8000
+uv run sphinx-build -b html -W -n docs docs/_build/html
 ```
 
 ## Quality checks

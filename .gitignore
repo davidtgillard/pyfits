@@ -28,4 +28,7 @@ src/pyfits/_lib/*.so
 src/pyfits/_lib/*.dll
 
 # MkDocs build output
+docs/_build/
+
+# sphinx doc site
 site/

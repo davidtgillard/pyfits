@@ -25,9 +25,11 @@ dev = [
     "types-jsonschema>=4.23.0",
 ]
 docs = [
-    "mkdocs>=1.6.0",
-    "mkdocs-material>=9.5.0",
-    "mkdocstrings[python]>=0.27.0",
+    "sphinx>=8.0",
+    "furo>=2024.0",
+    "myst-parser>=4.0",
+    "sphinx-autobuild>=2024.0",
+    "sphinx-copybutton>=0.5",
 ]
 
 [tool.pyfits]

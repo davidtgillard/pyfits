@@ -30,13 +30,13 @@ match Repo.open(path):
 
 ## FitsError
 
-Carried in `Err(...)` for operational failures. When libfits returns a structured error document, `code` is set from the JSON `error.code` field. When a negative C status is returned without JSON, `status` may be set to a [`FitsStatus`](api/exceptions.md#pyfits._errors.FitsStatus) value.
+Carried in `Err(...)` for operational failures. When libfits returns a structured error document, `code` is set from the JSON `error.code` field. When a negative C status is returned without JSON, `status` may be set to a {py:class}`FitsStatus <pyfits._errors.FitsStatus>` value.
 
 ## FitsSchemaError
 
 Subclass of `FitsError` used when a response fails JSON Schema validation or pyfits invariant checks. Attributes include `operation`, `schema_id`, and optionally `validation_message`.
 
-See the [Exceptions API](api/exceptions.md) reference for full details.
+See the [Exceptions API](api/exceptions) reference for full details.
 
 ## Nested subgraph status codes
 

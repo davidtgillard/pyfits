@@ -50,7 +50,7 @@ match Repo.open(Path("my-product"), registry_snapshot=Path("snapshots/registry.j
         ...
 ```
 
-See [`Repo`](api/repo.md) for all session methods.
+See [`Repo`](api/repo) for all session methods.
 
 ## Response validation
 
@@ -74,4 +74,4 @@ match schemas.validator("error_response"):
         v.validate({"ok": False, "error": {"code": "x", "message": "y"}})
 ```
 
-See the [Schemas API](api/schemas.md) reference for available helpers.
+See the [Schemas API](api/schemas) reference for available helpers.
