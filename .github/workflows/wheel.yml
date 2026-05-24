@@ -12,12 +12,16 @@ jobs:
       - name: Checkout pyfits
         uses: actions/checkout@v4
 
+      - name: Read libfits ref
+        id: libfits
+        run: echo "ref=$(grep '^libfits-ref=' .fits-lib-version | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout libfits
         uses: actions/checkout@v4
         with:
           repository: davidtgillard/fits
           path: fits
-          ref: libfits
+          ref: ${{ steps.libfits.outputs.ref }}
 
       - name: Install Zig
         uses: mlugg/setup-zig@v2

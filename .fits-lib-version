@@ -1,0 +1,2 @@
+# Pin libfits source ref for CI and wheel builds (fits branch, tag, or commit).
+libfits-ref=main

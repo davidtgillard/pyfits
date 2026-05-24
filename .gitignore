@@ -27,7 +27,5 @@ humans-only/
 src/pyfits/_lib/*.so
 src/pyfits/_lib/*.dll
 
-.fits-lib-version
-
 # MkDocs build output
 site/
