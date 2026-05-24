@@ -14,7 +14,6 @@ Public exports from the `pyfits` package:
         - FitsError
         - FitsSchemaError
         - FitsStatus
-        - __version__
         - libfits_version_major
         - api_version_minor
         - libfits_version_packed
