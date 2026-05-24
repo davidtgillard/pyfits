@@ -126,26 +126,23 @@ def schema_dict(schema_id: str) -> Result[dict[str, Any], FitsError]:
     if cached is not None:
         return Ok(cached)
     fn_name = f"FITS_{schema_id}_schema"
-    match _native.load_library():
-        case Err(error):
-            return Err(error)
-        case Ok(loaded):
-            raw = getattr(loaded, fn_name)()
-            if raw is None:
-                msg = f"{fn_name} returned NULL"
-                return Err(FitsError(msg, code="schema_null"))
-            parsed = json.loads(raw.decode("utf-8"))
-            if not isinstance(parsed, dict):
-                msg = f"{schema_id} schema is not a JSON object"
-                return Err(
-                    FitsSchemaError(
-                        msg,
-                        operation="schema",
-                        schema_id=schema_id,
-                    )
-                )
-            _SCHEMA_CACHE[schema_id] = parsed
-            return Ok(parsed)
+    loaded = _native._LIB
+    raw = getattr(loaded, fn_name)()
+    if raw is None:
+        msg = f"{fn_name} returned NULL"
+        return Err(FitsError(msg, code="schema_null"))
+    parsed = json.loads(raw.decode("utf-8"))
+    if not isinstance(parsed, dict):
+        msg = f"{schema_id} schema is not a JSON object"
+        return Err(
+            FitsSchemaError(
+                msg,
+                operation="schema",
+                schema_id=schema_id,
+            )
+        )
+    _SCHEMA_CACHE[schema_id] = parsed
+    return Ok(parsed)
 
 
 def validator(schema_id: str) -> Result[Draft202012Validator, FitsError]:

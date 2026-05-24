@@ -15,7 +15,7 @@ from pyfits.result import Err, Ok, Result
 if TYPE_CHECKING:
     from ctypes import CDLL
 
-_LIB: CDLL | None = None
+_LIB: CDLL
 
 
 class FitsApiVersion(ctypes.Structure):
@@ -69,50 +69,42 @@ def _repo_root_candidates() -> list[Path]:
     return candidates
 
 
-def load_library() -> Result[CDLL, FitsError]:
-    """Load libfits and return the configured CDLL handle.
+def _load_library() -> Result[CDLL, FitsError]:
+    """Attempt to load libfits and return the configured CDLL handle.
 
     Returns:
         Loaded library on success, or ``Err(FitsError)`` when not found or load
         fails.
     """
-    global _LIB
-    if _LIB is not None:
-        return Ok(_LIB)
-
-    lib_path: Path | None = None
     for candidate in _repo_root_candidates():
         if candidate.is_file():
-            lib_path = candidate
-            break
-    if lib_path is None:
-        msg = "libfits shared library not found; set PYFITS_LIB_PATH or build ../fits"
-        return Err(lib_not_found_error(msg))
+            try:
+                lib = ctypes.CDLL(str(candidate))
+            except OSError as exc:
+                return Err(FitsError(str(exc), code="lib_load_failed"))
+            _configure_lib(lib)
+            return Ok(lib)
+    msg = "libfits shared library not found; set PYFITS_LIB_PATH or build ../fits"
+    return Err(lib_not_found_error(msg))
 
-    try:
-        lib = ctypes.CDLL(str(lib_path))
-    except OSError as exc:
-        return Err(FitsError(str(exc), code="lib_load_failed"))
-    _configure_lib(lib)
-    _LIB = lib
-    return Ok(lib)
+
+def load_library() -> Result[CDLL, FitsError]:
+    """Return the libfits CDLL loaded at import time.
+
+    Returns:
+        ``Ok(loaded)`` for the library loaded when ``pyfits._native`` was
+        imported.
+    """
+    return Ok(_LIB)
 
 
 def lib() -> CDLL:
-    """Return the loaded libfits CDLL.
+    """Return the libfits CDLL loaded at import time.
 
     Returns:
         Loaded and configured libfits shared library handle.
-
-    Raises:
-        RuntimeError: When :func:`load_library` returns ``Err``.
     """
-    match load_library():
-        case Ok(loaded):
-            return loaded
-        case Err(error):
-            msg = str(error)
-            raise RuntimeError(msg)
+    return _LIB
 
 
 def _configure_lib(lib: CDLL) -> None:
@@ -208,28 +200,18 @@ def version_string() -> Result[str, FitsError]:
     """Return the libfits package version string.
 
     Returns:
-        ``Ok(version)`` from ``FITS_version_string()``, or ``Err(FitsError)`` when
-        the library cannot be loaded.
+        ``Ok(version)`` from ``FITS_version_string()``.
     """
-    match load_library():
-        case Ok(loaded):
-            return Ok(_decode_c_string(loaded.FITS_version_string()))
-        case Err(error):
-            return Err(error)
+    return Ok(_decode_c_string(_LIB.FITS_version_string()))
 
 
 def last_error() -> Result[str, FitsError]:
     """Return the thread-local libfits diagnostic string.
 
     Returns:
-        ``Ok(message)`` for the current thread diagnostic, or ``Err(FitsError)``
-        when the library cannot be loaded.
+        ``Ok(message)`` for the current thread diagnostic.
     """
-    match load_library():
-        case Ok(loaded):
-            return Ok(_decode_c_string(loaded.FITS_last_error()))
-        case Err(error):
-            return Err(error)
+    return Ok(_decode_c_string(_LIB.FITS_last_error()))
 
 
 def open_repo(
@@ -247,34 +229,28 @@ def open_repo(
     Returns:
         ``Ok(handle)`` on success, or ``Err(FitsError)`` on failure.
     """
-    match load_library():
-        case Err(error):
-            return Err(error)
-        case Ok(loaded):
-            root_b = (
-                repo_root if isinstance(repo_root, bytes) else repo_root.encode("utf-8")
-            )
-            snap_b: bytes | None = None
-            if registry_snapshot is not None:
-                snap_b = (
-                    registry_snapshot
-                    if isinstance(registry_snapshot, bytes)
-                    else registry_snapshot.encode("utf-8")
-                )
-            opts = FitsRepoOpenOptions(
-                struct_size=ctypes.sizeof(FitsRepoOpenOptions),
-                repo_root=root_b,
-                registry_snapshot_path=snap_b,
-            )
-            handle = loaded.FITS_CORE_repo_open(ctypes.byref(opts))
-            if not handle:
-                match last_error():
-                    case Ok(message):
-                        msg = message or "FITS_CORE_repo_open failed"
-                    case Err(error):
-                        msg = str(error)
-                return Err(FitsError(msg))
-            return Ok(cast(ctypes.c_void_p, handle))
+    root_b = repo_root if isinstance(repo_root, bytes) else repo_root.encode("utf-8")
+    snap_b: bytes | None = None
+    if registry_snapshot is not None:
+        snap_b = (
+            registry_snapshot
+            if isinstance(registry_snapshot, bytes)
+            else registry_snapshot.encode("utf-8")
+        )
+    opts = FitsRepoOpenOptions(
+        struct_size=ctypes.sizeof(FitsRepoOpenOptions),
+        repo_root=root_b,
+        registry_snapshot_path=snap_b,
+    )
+    handle = _LIB.FITS_CORE_repo_open(ctypes.byref(opts))
+    if not handle:
+        match last_error():
+            case Ok(message):
+                msg = message or "FITS_CORE_repo_open failed"
+            case Err(error):
+                msg = str(error)
+        return Err(FitsError(msg))
+    return Ok(cast(ctypes.c_void_p, handle))
 
 
 def close_repo(handle: ctypes.c_void_p) -> None:
@@ -301,36 +277,39 @@ def call_json(
 
     Returns:
         ``Ok((status, text))`` on success. ``response_text`` is empty when
-        libfits returns no JSON body. ``Err(FitsError)`` when the library cannot
-        be loaded or libfits returns a negative status with no JSON body.
+        libfits returns no JSON body. ``Err(FitsError)`` when libfits returns a
+        negative status with no JSON body.
     """
-    match load_library():
-        case Err(error):
-            return Err(error)
-        case Ok(loaded):
-            fn = cast(
-                Callable[..., int],
-                getattr(loaded, f"FITS_{operation}"),
-            )
-            req_ptr: ctypes.c_char_p | None = None
-            if request_json is not None:
-                req_ptr = ctypes.c_char_p(request_json)
-            out = ctypes.c_char_p()
-            status = fn(handle, req_ptr, ctypes.byref(out))
-            if not out:
-                match last_error():
-                    case Ok(message):
-                        err = error_from_status(status, message)
-                    case Err(error):
-                        return Err(error)
-                if err is not None:
-                    return Err(err)
-                return Ok((status, ""))
-            try:
-                if out.value is None:
-                    text = ""
-                else:
-                    text = out.value.decode("utf-8")
-            finally:
-                loaded.FITS_free(out)
-            return Ok((status, text))
+    fn = cast(
+        Callable[..., int],
+        getattr(_LIB, f"FITS_{operation}"),
+    )
+    req_ptr: ctypes.c_char_p | None = None
+    if request_json is not None:
+        req_ptr = ctypes.c_char_p(request_json)
+    out = ctypes.c_char_p()
+    status = fn(handle, req_ptr, ctypes.byref(out))
+    if not out:
+        match last_error():
+            case Ok(message):
+                err = error_from_status(status, message)
+            case Err(error):
+                return Err(error)
+        if err is not None:
+            return Err(err)
+        return Ok((status, ""))
+    try:
+        if out.value is None:
+            text = ""
+        else:
+            text = out.value.decode("utf-8")
+    finally:
+        _LIB.FITS_free(out)
+    return Ok((status, text))
+
+
+match _load_library():
+    case Ok(loaded):
+        _LIB = loaded
+    case Err(error):
+        raise RuntimeError(str(error)) from None

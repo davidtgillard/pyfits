@@ -14,13 +14,6 @@ from pyfits._errors import FitsError
 from pyfits.result import Err, Ok
 
 
-@pytest.fixture(autouse=True)
-def reset_lib() -> None:
-    _native._LIB = None
-    yield
-    _native._LIB = None
-
-
 def _bundled_lib() -> Path:
     root = Path(__file__).resolve().parents[1]
     path = root / "src" / "pyfits" / "_lib" / "libfits.so"
@@ -55,7 +48,7 @@ def test_load_library_skips_missing_candidate(
         "_repo_root_candidates",
         lambda: [missing, lib],
     )
-    result = _native.load_library()
+    result = _native._load_library()
     assert isinstance(result, Ok)
 
 
@@ -72,7 +65,7 @@ def test_load_library_cdll_failure(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda: [lib],
     )
     monkeypatch.setattr(_native.ctypes, "CDLL", fail_cdll)
-    result = _native.load_library()
+    result = _native._load_library()
     assert isinstance(result, Err)
     assert result.err_value.code == "lib_load_failed"
 
@@ -100,16 +93,6 @@ def test_open_repo_last_error_load_failure(
     result = _native.open_repo(str(repo_path).encode())
     assert isinstance(result, Err)
     assert str(result.err_value) == "diag failed"
-
-
-def test_call_json_load_library_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        _native,
-        "load_library",
-        lambda: Err(FitsError("missing", code="lib_not_found")),
-    )
-    result = _native.call_json("init", ctypes.c_void_p(1), b"{}")
-    assert isinstance(result, Err)
 
 
 def test_call_json_last_error_load_failure(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -142,19 +125,9 @@ def test_load_library_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
         "_repo_root_candidates",
         lambda: [Path("/nonexistent/libfits.so")],
     )
-    result = _native.load_library()
+    result = _native._load_library()
     assert isinstance(result, Err)
     assert "libfits shared library not found" in str(result.err_value)
-
-
-def test_lib_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        _native,
-        "_repo_root_candidates",
-        lambda: [Path("/nonexistent/libfits.so")],
-    )
-    with pytest.raises(RuntimeError, match="libfits shared library not found"):
-        _native.lib()
 
 
 def test_lib_path_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -206,19 +179,6 @@ def test_open_repo_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     result = _native.open_repo(str(tmp_path / "repo").encode())
     assert isinstance(result, Err)
     assert "FITS_CORE_repo_open failed" in str(result.err_value)
-
-
-def test_open_repo_load_library_failure(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    monkeypatch.setattr(
-        _native,
-        "load_library",
-        lambda: Err(FitsError("missing", code="lib_not_found")),
-    )
-    result = _native.open_repo(str(tmp_path / "repo"))
-    assert isinstance(result, Err)
 
 
 def test_open_repo_str_registry_snapshot(
@@ -350,23 +310,3 @@ def test_version_string_uses_decode(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _native.version_string()
     assert isinstance(result, Ok)
     assert result.ok_value == "1.2.3"
-
-
-def test_version_string_lib_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        _native,
-        "load_library",
-        lambda: Err(FitsError("missing", code="lib_not_found")),
-    )
-    result = _native.version_string()
-    assert isinstance(result, Err)
-
-
-def test_last_error_lib_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        _native,
-        "load_library",
-        lambda: Err(FitsError("missing", code="lib_not_found")),
-    )
-    result = _native.last_error()
-    assert isinstance(result, Err)

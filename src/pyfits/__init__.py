@@ -24,23 +24,14 @@ Public exports:
     FitsError, FitsSchemaError, FitsStatus:
         Error payload types for ``Err`` variants.
 
-    lib_path, libfits_version_string:
-        Shared library location and version string.
-
-    libfits_version_major, api_version_minor, libfits_version_packed:
-        Loaded libfits C ABI version components.
+    Version, get_version:
+        Loaded libfits C ABI and package version information.
 """
 
 from importlib.metadata import PackageNotFoundError, version
 
 from pyfits._errors import FitsError, FitsSchemaError, FitsStatus
-from pyfits._native import lib_path
-from pyfits._native import version_string as libfits_version_string
-from pyfits._version_abi import (
-    api_version_minor,
-    libfits_version_major,
-    libfits_version_packed,
-)
+from pyfits._version_abi import Version, get_version
 from pyfits.models import (
     Graph,
     GraphEdge,
@@ -77,12 +68,9 @@ __all__ = [
     "ValidateResult",
     "ValidateSummary",
     "ValidationIssue",
+    "Version",
     "__version__",
+    "get_version",
     "is_err",
     "is_ok",
-    "libfits_version_major",
-    "api_version_minor",
-    "libfits_version_packed",
-    "libfits_version_string",
-    "lib_path",
 ]

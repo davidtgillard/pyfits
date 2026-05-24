@@ -25,7 +25,7 @@ uv sync --all-groups
 
 ## libfits coupling
 
-- C ABI version is read from the loaded library (`pyfits.libfits_version_packed()`, etc.).
+- C ABI version is read from the loaded library (`pyfits.get_version()`).
 - Pin the libfits git ref in [`.fits-lib-version`](https://github.com/davidtgillard/pyfits/blob/main/.fits-lib-version) for CI.
 - CI checks out `davidtgillard/fits` and builds before tests.
 

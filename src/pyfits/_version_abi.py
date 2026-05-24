@@ -1,51 +1,66 @@
 """libfits C ABI and package version (read from the loaded shared library)."""
 
-from pyfits._errors import FitsError
-from pyfits.result import Err, Ok, Result
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from pyfits._native import lib
 
 
-def libfits_version_packed() -> Result[int, FitsError]:
-    """Return the packed libfits C ABI version.
+@dataclass(frozen=True, slots=True, init=False)
+class Version:
+    """libfits C ABI and package version components.
 
-    Reads ``FITS_abi_version()`` from the loaded shared library.
+    Instances are obtained from :func:`get_version` only.
+
+    Attributes:
+        major: C struct ABI major version component.
+        minor: C struct ABI minor version component.
+        patch: C struct ABI patch version component.
+        version_string: libfits package version formatted as ``major.minor.patch``.
+    """
+
+    major: int
+    minor: int
+    patch: int
+
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        msg = "Version cannot be constructed directly; use get_version()"
+        raise TypeError(msg)
+
+    @property
+    def version_string(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+
+def _make_version(major: int, minor: int, patch: int) -> Version:
+    version = object.__new__(Version)
+    object.__setattr__(version, "major", major)
+    object.__setattr__(version, "minor", minor)
+    object.__setattr__(version, "patch", patch)
+    return version
+
+
+def _read_version() -> Version:
+    ver = lib().FITS_abi_version()
+    return _make_version(
+        major=int(ver.major),
+        minor=int(ver.minor),
+        patch=int(ver.patch),
+    )
+
+
+# contains the version loaded at import time
+_VERSION = _read_version()
+
+
+def get_version() -> Version:
+    """Return loaded libfits C ABI and package version.
+
+    Reads ``FITS_abi_version()`` from the libfits shared library loaded at
+    import time.
 
     Returns:
-        ``Ok(packed)`` where packed is ``(major << 16) | minor``, or
-        ``Err(FitsError)`` when the library cannot be loaded.
+        Loaded libfits version.
     """
-    from pyfits._native import load_library
-
-    match load_library():
-        case Ok(loaded):
-            ver = loaded.FITS_abi_version()
-            return Ok((int(ver.major) << 16) | int(ver.minor))
-        case Err(error):
-            return Err(error)
-
-
-def libfits_version_major() -> Result[int, FitsError]:
-    """Return the major component of the loaded libfits C struct ABI.
-
-    Returns:
-        ``Ok(major)`` extracted from :func:`libfits_version_packed`, or
-        ``Err(FitsError)`` when the library cannot be loaded.
-    """
-    match libfits_version_packed():
-        case Ok(packed):
-            return Ok(packed >> 16)
-        case Err(error):
-            return Err(error)
-
-
-def api_version_minor() -> Result[int, FitsError]:
-    """Return the minor component of the loaded libfits C struct ABI.
-
-    Returns:
-        ``Ok(minor)`` extracted from :func:`libfits_version_packed`, or
-        ``Err(FitsError)`` when the library cannot be loaded.
-    """
-    match libfits_version_packed():
-        case Ok(packed):
-            return Ok(packed & 0xFFFF)
-        case Err(error):
-            return Err(error)
+    return _VERSION

@@ -16,18 +16,11 @@ Classes and types
 Version and library info
 ------------------------
 
-.. autofunction:: pyfits._version_abi.libfits_version_packed
-   :no-index:
+.. autoclass:: pyfits.Version
+   :members:
+   :exclude-members: major, minor, patch, version_string
 
-.. autofunction:: pyfits.libfits_version_major
-
-.. autofunction:: pyfits.api_version_minor
-
-.. autofunction:: pyfits.libfits_version_packed
-
-.. autofunction:: pyfits.libfits_version_string
-
-.. autofunction:: pyfits.lib_path
+.. autofunction:: pyfits.get_version
 
 Submodules
 ----------

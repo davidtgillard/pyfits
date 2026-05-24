@@ -12,7 +12,6 @@ from pyfits._schemas import (
     clear_schema_cache,
     schema_dict,
     validate_document,
-    validator,
 )
 from pyfits.result import Err, Ok
 
@@ -57,18 +56,6 @@ def test_schema_dict_local_ok_true() -> None:
     assert result.ok_value["properties"]["ok"]["const"] is True
 
 
-def test_validator_returns_err_when_schema_load_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        _native,
-        "load_library",
-        lambda: Err(FitsError("missing", code="lib_not_found")),
-    )
-    result = validator("init_request")
-    assert isinstance(result, Err)
-
-
 def test_validate_document_success_for_local_schemas() -> None:
     assert isinstance(validate_document("ok_true", {"ok": True}), Ok)
     assert isinstance(
@@ -82,16 +69,6 @@ def test_validate_document_success_for_local_schemas() -> None:
 
 def test_validate_document_invalid_instance() -> None:
     result = validate_document("ok_true", {"ok": False})
-    assert isinstance(result, Err)
-
-
-def test_schema_dict_load_library_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        _native,
-        "load_library",
-        lambda: Err(FitsError("missing", code="lib_not_found")),
-    )
-    result = schema_dict("init_request")
     assert isinstance(result, Err)
 
 

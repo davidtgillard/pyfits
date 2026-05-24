@@ -106,7 +106,7 @@ uv run ruff check . && uv run ruff format . && uv run basedpyright && uv run myp
 
 ## libfits coupling
 
-- C ABI version is read from the loaded library (`pyfits.libfits_version_packed()`, etc.).
+- C ABI version is read from the loaded library (`pyfits.get_version()`).
 - Pin the libfits git ref in [`.fits-lib-version`](.fits-lib-version) for CI.
 - CI checks out `davidtgillard/fits` and builds before tests.
 

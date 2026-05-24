@@ -4,24 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from pyfits import _native
-from pyfits._errors import FitsError, FitsSchemaError
+from pyfits._errors import FitsSchemaError
 from pyfits._validate import validate_response
 from pyfits.result import Err
-
-
-def test_validate_response_schema_load_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        _native,
-        "load_library",
-        lambda: Err(FitsError("missing", code="lib_not_found")),
-    )
-    result = validate_response(
-        "init",
-        {"ok": False, "error": {"code": "e", "message": "m"}},
-    )
-    assert isinstance(result, Err)
-    assert str(result.err_value) == "missing"
 
 
 def test_validate_response_unknown_operation() -> None:

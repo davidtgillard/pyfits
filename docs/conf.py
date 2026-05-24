@@ -76,7 +76,6 @@ nitpick_ignore = [
     ("py:meth", "open"),
     ("py:meth", "close"),
     ("py:meth", "init"),
-    ("py:func", "libfits_version_packed"),
     ("py:func", "status_from_int"),
     ("py:func", "last_error"),
 ]
