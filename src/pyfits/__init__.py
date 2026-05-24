@@ -29,9 +29,6 @@ Public exports:
 
     libfits_version_major, api_version_minor, libfits_version_packed:
         Loaded libfits C ABI version components.
-
-    __version__:
-        Installed pyfits package version from distribution metadata.
 """
 
 from importlib.metadata import PackageNotFoundError, version
