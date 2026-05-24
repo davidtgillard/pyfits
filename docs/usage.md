@@ -26,7 +26,7 @@ match Repo.open(Path("my-product")):
 
 ### Explicit target ids and nested create
 
-Use `TargetId` when requesting a specific single-segment id at create time (serialized to libfits as `instance_id`). libfits returns canonical `Id` values:
+Use `TargetId` when requesting a specific single-segment id at create time (serialized to libfits as `target_id`). libfits returns canonical `Id` values:
 
 ```python
 match repo.new_node(ObjectTypeName("REQ"), target_id=TargetId("login-flow")):

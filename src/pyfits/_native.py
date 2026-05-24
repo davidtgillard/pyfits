@@ -18,6 +18,24 @@ if TYPE_CHECKING:
 _LIB: CDLL | None = None
 
 
+class FitsApiVersion(ctypes.Structure):
+    """C struct ``FitsApiVersion`` returned by ``FITS_abi_version``.
+
+    Attributes:
+        struct_size: Size of this structure in bytes.
+        major: ABI major version component.
+        minor: ABI minor version component.
+        patch: ABI patch version component.
+    """
+
+    _fields_: ClassVar[list[tuple[str, type]]] = [
+        ("struct_size", ctypes.c_uint32),
+        ("major", ctypes.c_uint32),
+        ("minor", ctypes.c_uint32),
+        ("patch", ctypes.c_uint32),
+    ]
+
+
 class FitsRepoOpenOptions(ctypes.Structure):
     """C struct ``FitsRepoOpenOptions`` passed to ``FITS_CORE_repo_open``.
 
@@ -99,8 +117,8 @@ def lib() -> CDLL:
 
 def _configure_lib(lib: CDLL) -> None:
     """Set ctypes signatures for exported symbols."""
-    lib.FITS_api_version.argtypes = []
-    lib.FITS_api_version.restype = ctypes.c_uint32
+    lib.FITS_abi_version.argtypes = []
+    lib.FITS_abi_version.restype = FitsApiVersion
 
     lib.FITS_version_string.argtypes = []
     lib.FITS_version_string.restype = ctypes.c_char_p

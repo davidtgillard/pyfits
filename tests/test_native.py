@@ -20,10 +20,11 @@ def test_lib_loads() -> None:
 
 
 def test_api_version() -> None:
-    packed = int(native.lib().FITS_api_version())
+    ver = native.lib().FITS_abi_version()
+    packed = (ver.major << 16) | ver.minor
     assert unwrap(libfits_version_packed()) == packed
-    assert unwrap(libfits_version_major()) == (packed >> 16)
-    assert unwrap(api_version_minor()) == (packed & 0xFFFF)
+    assert unwrap(libfits_version_major()) == ver.major
+    assert unwrap(api_version_minor()) == ver.minor
 
 
 def test_version_string() -> None:

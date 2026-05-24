@@ -264,8 +264,8 @@ class Repo:
         Args:
             type_name: Registered object type name for the new node.
             container_id: Optional parent canonical id for nested create.
-            target_id: Optional explicit single-segment id (wire
-                ``instance_id``); omit for autonumber allocation.
+            target_id: Optional explicit single-segment id; omit for autonumber
+                allocation.
             markdown: When ``True``, create the node as markdown-backed content.
             title: Optional human-readable node title.
 
@@ -282,7 +282,7 @@ class Repo:
         if container_id is not None:
             request["container_id"] = container_id.value
         if target_id is not None:
-            request["instance_id"] = target_id.value
+            request["target_id"] = target_id.value
         if title is not None:
             request["title"] = title
         return _call_parsed(
@@ -306,8 +306,8 @@ class Repo:
             link_type: Registered link type name.
             in_id: Input endpoint canonical node id.
             out_id: Output endpoint canonical node id.
-            target_id: Optional explicit single-segment link id (wire
-                ``instance_id``); omit for autonumber allocation.
+            target_id: Optional explicit single-segment link id; omit for
+                autonumber allocation.
 
         Returns:
             ``Ok(Id)`` with the new link id on success, or ``Err(FitsError)`` on
@@ -322,7 +322,7 @@ class Repo:
             "out_id": out_id.value,
         }
         if target_id is not None:
-            request["instance_id"] = target_id.value
+            request["target_id"] = target_id.value
         return _call_parsed(
             "new_link",
             self._require_handle(),

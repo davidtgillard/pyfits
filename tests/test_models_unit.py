@@ -183,7 +183,7 @@ def test_parse_validate_result_success(
         (parse_new_node_id, {"ok": True}, "missing node_id"),
         (parse_new_node_id, {"ok": True, "node_id": 1}, "node_id must be a string"),
         (parse_new_link_id, {"ok": True}, "missing link_id"),
-        (parse_rename_instance_id, {"ok": True}, "missing instance_id"),
+        (parse_rename_instance_id, {"ok": True}, "missing target_id"),
         (parse_output_graph, {"ok": True}, "missing graph object"),
         (parse_output_graph, {"ok": True, "graph": []}, "missing graph object"),
     ],
@@ -217,7 +217,7 @@ def test_parse_new_link_id_success() -> None:
 
 
 def test_parse_rename_instance_id_success() -> None:
-    result = parse_rename_instance_id({"ok": True, "instance_id": "auth-flow"})
+    result = parse_rename_instance_id({"ok": True, "target_id": "auth-flow"})
     assert isinstance(result, Ok)
     assert result.ok_value == Id("auth-flow")
 

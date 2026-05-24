@@ -7,7 +7,7 @@ from pyfits.result import Err, Ok, Result
 def libfits_version_packed() -> Result[int, FitsError]:
     """Return the packed libfits C ABI version.
 
-    Reads ``FITS_api_version()`` from the loaded shared library.
+    Reads ``FITS_abi_version()`` from the loaded shared library.
 
     Returns:
         ``Ok(packed)`` where packed is ``(major << 16) | minor``, or
@@ -17,7 +17,8 @@ def libfits_version_packed() -> Result[int, FitsError]:
 
     match load_library():
         case Ok(loaded):
-            return Ok(int(loaded.FITS_api_version()))
+            ver = loaded.FITS_abi_version()
+            return Ok((int(ver.major) << 16) | int(ver.minor))
         case Err(error):
             return Err(error)
 

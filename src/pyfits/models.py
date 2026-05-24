@@ -92,7 +92,7 @@ class TargetId:
     """Single-segment id requested at create time (never returned from libfits).
 
     Attributes:
-        value: Validated single-segment id serialized to wire ``instance_id``.
+        value: Validated single-segment id serialized to wire ``target_id``.
     """
 
     value: str
@@ -494,19 +494,19 @@ def parse_new_link_id(doc: dict[str, Any]) -> Result[Id, FitsError]:
 
 
 def parse_rename_instance_id(doc: dict[str, Any]) -> Result[Id, FitsError]:
-    """Return ``instance_id`` from a ``rename_instance`` success response.
+    """Return ``target_id`` from a ``rename_instance`` success response.
 
     Args:
         doc: Parsed ``rename_instance`` success response with ``ok: true``.
 
     Returns:
-        ``Ok(Id)`` on success, or ``Err(FitsError)`` when ``instance_id`` is
+        ``Ok(Id)`` on success, or ``Err(FitsError)`` when ``target_id`` is
         missing or invalid.
     """
     return _parse_required_id(
-        doc.get("instance_id"),
+        doc.get("target_id"),
         operation="rename_instance",
-        field="instance_id",
+        field="target_id",
     )
 
 

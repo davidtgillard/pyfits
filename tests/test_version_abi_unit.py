@@ -8,6 +8,7 @@ import pytest
 
 from pyfits import _native
 from pyfits._errors import FitsError
+from pyfits._native import FitsApiVersion
 from pyfits._version_abi import (
     api_version_minor,
     libfits_version_major,
@@ -18,7 +19,7 @@ from pyfits.result import Err, Ok
 
 def test_libfits_version_packed_success(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_lib = MagicMock()
-    mock_lib.FITS_api_version.return_value = 0x00010002
+    mock_lib.FITS_abi_version.return_value = FitsApiVersion(16, 1, 2, 0)
     monkeypatch.setattr(_native, "load_library", lambda: Ok(mock_lib))
     result = libfits_version_packed()
     assert isinstance(result, Ok)
@@ -27,7 +28,7 @@ def test_libfits_version_packed_success(monkeypatch: pytest.MonkeyPatch) -> None
 
 def test_libfits_version_major_success(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_lib = MagicMock()
-    mock_lib.FITS_api_version.return_value = 0x00030004
+    mock_lib.FITS_abi_version.return_value = FitsApiVersion(16, 3, 4, 0)
     monkeypatch.setattr(_native, "load_library", lambda: Ok(mock_lib))
     result = libfits_version_major()
     assert isinstance(result, Ok)
@@ -36,7 +37,7 @@ def test_libfits_version_major_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_api_version_minor_success(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_lib = MagicMock()
-    mock_lib.FITS_api_version.return_value = 0x00030004
+    mock_lib.FITS_abi_version.return_value = FitsApiVersion(16, 3, 4, 0)
     monkeypatch.setattr(_native, "load_library", lambda: Ok(mock_lib))
     result = api_version_minor()
     assert isinstance(result, Ok)

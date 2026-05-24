@@ -143,7 +143,7 @@ def test_new_node_serializes_target_id(
     assert result.ok_value == Id("login-flow")
     assert captured[0]["type_name"] == "REQ"
     assert captured[0]["container_id"] == "REQ-1"
-    assert captured[0]["instance_id"] == "login-flow"
+    assert captured[0]["target_id"] == "login-flow"
     repo.close()
 
 
@@ -169,7 +169,7 @@ def test_rename_instance_returns_id(
     repo = unwrap(Repo.open(repo_dir))
     monkeypatch.setattr(
         "pyfits.repo._json.call_and_parse",
-        lambda *_args, **_kwargs: Ok({"ok": True, "instance_id": "auth-flow"}),
+        lambda *_args, **_kwargs: Ok({"ok": True, "target_id": "auth-flow"}),
     )
     result = repo.rename_instance(Id("login-flow"), Id("auth-flow"))
     assert isinstance(result, Ok)
@@ -257,7 +257,7 @@ def test_new_link_serializes_target_id(
             target_id=TargetId("my-link"),
         )
     )
-    assert captured[0]["instance_id"] == "my-link"
+    assert captured[0]["target_id"] == "my-link"
     repo.close()
 
 
