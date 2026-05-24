@@ -2,7 +2,7 @@
 
 ## Repository workflow
 
-Open a repository session with `Repo.open()` and a context manager (recommended) or call `close()` explicitly:
+Open a repository session with `Repo.open()` and a context manager (recommended) or call `close()` explicitly. While a session is open, `repo.is_closed` is `False`; after `close()` it is `True` (a closed session cannot be reopened—call `Repo.open()` again for a new session).
 
 ```python
 from pathlib import Path

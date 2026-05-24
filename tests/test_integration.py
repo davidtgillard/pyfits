@@ -182,6 +182,12 @@ def test_close_idempotent(initialized_repo: Repo) -> None:
     initialized_repo.close()
 
 
+def test_is_closed(initialized_repo: Repo) -> None:
+    assert initialized_repo.is_closed is False
+    initialized_repo.close()
+    assert initialized_repo.is_closed is True
+
+
 def test_use_after_close_raises(initialized_repo: Repo) -> None:
     initialized_repo.close()
     with pytest.raises(RuntimeError, match="repository session is closed"):

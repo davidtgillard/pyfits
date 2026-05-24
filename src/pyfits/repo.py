@@ -112,6 +112,16 @@ class Repo:
             _native.close_repo(self._handle)
             self._handle = None
 
+    @property
+    def is_closed(self) -> bool:
+        """Return whether this session has been closed.
+
+        Returns:
+            ``True`` after :meth:`close` (including context-manager exit);
+            ``False`` while the native handle is still active.
+        """
+        return self._handle is None
+
     def _require_handle(self) -> ctypes.c_void_p:
         if self._handle is None:
             msg = "repository session is closed"
