@@ -16,6 +16,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "basedpyright>=1.29.0",
     "mypy>=2.1.0",
     "pip-audit>=2.10.0",
     "pytest>=8.3.0",
@@ -123,4 +124,13 @@ strict = true
 warn_unused_configs = true
 show_error_codes = true
 namespace_packages = false
+
+# --- Pyright (Pylance in CI; minimal overlap with mypy) ---
+[tool.pyright]
+include = ["src"]
+exclude = ["fits"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+extraPaths = ["src"]
+reportMissingTypeStubs = false
 
