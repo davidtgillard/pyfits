@@ -131,14 +131,12 @@ class Repo:
     def init(
         self,
         *,
-        no_interactive: bool = True,
         init_git: bool = False,
         edit_gitignore: bool = False,
     ) -> Result[None, FitsError]:
         """Initialize an empty directory as a fits repository.
 
         Args:
-            no_interactive: When ``True``, skip interactive prompts.
             init_git: When ``True``, initialize a git repository in the root.
             edit_gitignore: When ``True``, create or update ``.gitignore``.
 
@@ -152,7 +150,6 @@ class Repo:
         request = _with_protocol_version(
             "init",
             {
-                "no_interactive": no_interactive,
                 "init_git": init_git,
                 "edit_gitignore": edit_gitignore,
             },

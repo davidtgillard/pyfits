@@ -52,7 +52,7 @@ def test_call_and_parse_failures(
         "pyfits._json._native.last_error",
         lambda: Ok("native error"),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert match in str(result.err_value)
 
@@ -68,7 +68,7 @@ def test_call_and_parse_empty_response_fallback_message(
         "pyfits._json._native.last_error",
         lambda: Ok(""),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert "status -1" in str(result.err_value)
 
@@ -85,7 +85,7 @@ def test_call_and_parse_bad_status_with_error_doc(
         "pyfits._json._native.last_error",
         lambda: Ok("native error"),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert "fail" in str(result.err_value)
 
@@ -95,7 +95,7 @@ def test_call_and_parse_success(monkeypatch: pytest.MonkeyPatch) -> None:
         "pyfits._json._native.call_json",
         lambda *_args, **_kwargs: Ok((0, '{"ok": true}')),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Ok)
     assert result.ok_value == {"ok": True}
 
@@ -105,7 +105,7 @@ def test_call_and_parse_empty_success_body(monkeypatch: pytest.MonkeyPatch) -> N
         "pyfits._json._native.call_json",
         lambda *_args, **_kwargs: Ok((0, "")),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Ok)
     assert result.ok_value == {}
 
@@ -118,14 +118,14 @@ def test_call_and_parse_ok_false_at_success_status(
         "pyfits._json._native.call_json",
         lambda *_args, **_kwargs: Ok((0, body)),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert "nope" in str(result.err_value)
     monkeypatch.setattr(
         "pyfits._json._native.call_json",
         lambda *_args, **_kwargs: Err(FitsError("boom")),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert str(result.err_value) == "boom"
 
@@ -141,7 +141,7 @@ def test_call_and_parse_last_error_load_failure(
         "pyfits._json._native.last_error",
         lambda: Err(FitsError("load failed")),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert str(result.err_value) == "load failed"
 
@@ -155,7 +155,7 @@ def test_call_and_parse_validate_response_error(
         "pyfits._json._native.call_json",
         lambda *_args, **_kwargs: Ok((0, '{"ok": true, "extra": "bad"}')),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert isinstance(result.err_value, FitsSchemaError)
 
@@ -171,7 +171,7 @@ def test_call_and_parse_negative_status_after_validation(
         "pyfits._json._native.last_error",
         lambda: Ok("status failure"),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert "status failure" in str(result.err_value)
 
@@ -187,6 +187,6 @@ def test_call_and_parse_negative_status_last_error_fails(
         "pyfits._json._native.last_error",
         lambda: Err(FitsError("diag failed")),
     )
-    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert str(result.err_value) == "diag failed"
