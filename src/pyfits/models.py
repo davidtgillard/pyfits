@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Any, Literal
+
+from pyrsistent import pvector
+from pyrsistent.typing import PVector
 
 from pyfits._errors import FitsError, FitsSchemaError
 from pyfits.result import Err, Ok, Result
@@ -127,6 +131,7 @@ class Id:
     """
 
     value: str
+    _segments: PVector[str] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if not self.value:
@@ -138,6 +143,7 @@ class Id:
             raise ValueError(msg)
         for segment in segments:
             _validate_segment(segment)
+        object.__setattr__(self, "_segments", pvector(segments))
 
     @classmethod
     def parse(cls, raw: str) -> Id:
@@ -170,9 +176,9 @@ class Id:
             return None
 
     @property
-    def segments(self) -> tuple[str, ...]:
+    def segments(self) -> Sequence[str]:
         """Return path segments of this id."""
-        return tuple(self.value.split("/"))
+        return self._segments
 
     @classmethod
     def join(cls, parent: Id, target: TargetId) -> Id:
@@ -244,7 +250,7 @@ class ValidateResult:
         protocol_version: Optional protocol version echoed by libfits.
     """
 
-    validation_issues: tuple[ValidationIssue, ...]
+    validation_issues: Sequence[ValidationIssue]
     summary: ValidateSummary
     protocol_version: int | None = None
 
@@ -292,8 +298,8 @@ class Graph:
         edges: Directed graph edges.
     """
 
-    nodes: tuple[GraphNode, ...]
-    edges: tuple[GraphEdge, ...]
+    nodes: Sequence[GraphNode]
+    edges: Sequence[GraphEdge]
 
 
 def _schema_err(message: str, *, operation: str) -> Err[FitsError]:
@@ -439,7 +445,7 @@ def parse_validate_result(doc: dict[str, Any]) -> Result[ValidateResult, FitsErr
     protocol_version = proto if isinstance(proto, int) else None
     return Ok(
         ValidateResult(
-            validation_issues=tuple(validation_issues),
+            validation_issues=pvector(validation_issues),
             summary=summary,
             protocol_version=protocol_version,
         )
@@ -622,7 +628,7 @@ def parse_output_graph(doc: dict[str, Any]) -> Result[Graph, FitsError]:
             )
         )
 
-    return Ok(Graph(nodes=tuple(nodes), edges=tuple(edges)))
+    return Ok(Graph(nodes=pvector(nodes), edges=pvector(edges)))
 
 
 def format_output_graph_json(

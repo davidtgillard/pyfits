@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import FrozenInstanceError
 from typing import Any
 
 import pytest
+from pyrsistent import pvector
 
 from pyfits._errors import FitsSchemaError
 from pyfits.models import (
     Graph,
+    GraphEdge,
+    GraphNode,
     Id,
     ObjectTypeName,
     TargetId,
     ValidateResult,
+    ValidateSummary,
     format_output_graph_json,
     parse_new_link_id,
     parse_new_node_id,
@@ -314,7 +319,7 @@ def test_target_id_rejects_invalid_values(value: str, match: str) -> None:
 def test_id_accepts_valid_values(value: str) -> None:
     parsed = Id(value)
     assert parsed.value == value
-    assert parsed.segments == tuple(value.split("/"))
+    assert list(parsed.segments) == value.split("/")
 
 
 @pytest.mark.parametrize(
@@ -622,3 +627,75 @@ def test_wire_id_from_response_qualified_with_title() -> None:
 def test_parse_new_node_id_invalid_canonical() -> None:
     result = parse_new_node_id({"ok": True, "node_id": "file.md"})
     assert isinstance(result, Err)
+
+
+@pytest.mark.parametrize(
+    "factory,field,new_value",
+    [
+        (lambda: Id("REQ-1"), "value", "mutated"),
+        (lambda: GraphNode(id=Id("REQ-1")), "id", Id("REQ-2")),
+        (
+            lambda: GraphEdge(
+                from_id=Id("REQ-1"),
+                to_id=Id("REQ-2"),
+                kind="references",
+                link_type="",
+            ),
+            "kind",
+            "registered_link",
+        ),
+        (lambda: Graph(nodes=pvector([]), edges=pvector([])), "nodes", pvector([])),
+        (
+            lambda: ValidateResult(
+                validation_issues=pvector([]),
+                summary=ValidateSummary(
+                    total_validation_issues=0,
+                    info_count=0,
+                    warning_count=0,
+                    error_count=0,
+                ),
+            ),
+            "protocol_version",
+            99,
+        ),
+    ],
+)
+def test_models_are_frozen(
+    factory: Callable[[], object],
+    field: str,
+    new_value: object,
+) -> None:
+    model = factory()
+    with pytest.raises(FrozenInstanceError):
+        setattr(model, field, new_value)
+
+
+def test_graph_and_validate_result_use_pvector_backing() -> None:
+    graph_result = parse_output_graph(
+        {
+            "ok": True,
+            "graph": {
+                "nodes": [{"id": "REQ-1"}],
+                "edges": [],
+            },
+        }
+    )
+    assert isinstance(graph_result, Ok)
+    graph = graph_result.ok_value
+    assert isinstance(graph.nodes, Sequence)
+    assert type(graph.nodes).__name__ == "PVector"
+    assert isinstance(graph.edges, Sequence)
+    assert type(graph.edges).__name__ == "PVector"
+
+    validate_result = parse_validate_result(_valid_validate_doc())
+    assert isinstance(validate_result, Ok)
+    issues = validate_result.ok_value.validation_issues
+    assert isinstance(issues, Sequence)
+    assert type(issues).__name__ == "PVector"
+
+
+def test_id_segments_use_pvector_backing() -> None:
+    parsed = Id("REQ-1/section-1")
+    assert isinstance(parsed.segments, Sequence)
+    assert type(parsed.segments).__name__ == "PVector"
+    assert list(parsed.segments) == ["REQ-1", "section-1"]
