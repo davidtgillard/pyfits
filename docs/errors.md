@@ -6,7 +6,7 @@ pyfits returns operational failures as `Result[..., FitsError]` (`Ok` / `Err`) i
 |-----------|---------|
 | `Err(FitsError)` | `ok: false` JSON response, negative C status, or missing libfits |
 | `Err(FitsSchemaError)` | Response JSON failed schema or invariant checks |
-| `ValueError` | Invalid caller input (e.g. `ObjectTypeName`) |
+| `ValueError` | Invalid caller input (e.g. `ObjectTypeName`, `Id`, `TargetId`) |
 | `RuntimeError` | Using `Repo` after `close()` |
 | `KeyError` | Invalid `schemas.schema_dict` id |
 
@@ -37,3 +37,12 @@ Carried in `Err(...)` for operational failures. When libfits returns a structure
 Subclass of `FitsError` used when a response fails JSON Schema validation or pyfits invariant checks. Attributes include `operation`, `schema_id`, and optionally `validation_message`.
 
 See the [Exceptions API](api/exceptions.md) reference for full details.
+
+## Nested subgraph status codes
+
+libfits 0.4 adds stable negative statuses for nested subgraph operations:
+
+| Status | Value | Meaning |
+|--------|-------|---------|
+| `FitsStatus.ERR_SUBGRAPH_INVALID` | -12 | Nested subgraph index or layout is invalid |
+| `FitsStatus.ERR_UNKNOWN_NESTED_TYPE` | -13 | Nested type not registered for the container |

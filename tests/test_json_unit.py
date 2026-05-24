@@ -110,7 +110,17 @@ def test_call_and_parse_empty_success_body(monkeypatch: pytest.MonkeyPatch) -> N
     assert result.ok_value == {}
 
 
-def test_call_and_parse_call_json_error(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_call_and_parse_ok_false_at_success_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = '{"ok": false, "error": {"code": "E", "message": "nope"}}'
+    monkeypatch.setattr(
+        "pyfits._json._native.call_json",
+        lambda *_args, **_kwargs: Ok((0, body)),
+    )
+    result = call_and_parse("init", ctypes.c_void_p(1), {"no_interactive": True})
+    assert isinstance(result, Err)
+    assert "nope" in str(result.err_value)
     monkeypatch.setattr(
         "pyfits._json._native.call_json",
         lambda *_args, **_kwargs: Err(FitsError("boom")),

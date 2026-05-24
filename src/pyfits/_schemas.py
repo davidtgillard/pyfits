@@ -37,10 +37,15 @@ _LIBFITS_SCHEMA_IDS: tuple[str, ...] = (
     "new_node_request",
     "new_node_response",
     "new_link_request",
+    "new_link_response",
     "remove_request",
     "init_request",
     "register_node_type_request",
     "register_link_type_request",
+    "rename_instance_request",
+    "rename_instance_response",
+    "register_nested_node_type_request",
+    "register_nested_link_type_request",
     "error_response",
 )
 
@@ -68,10 +73,13 @@ SUCCESS_SCHEMA_BY_OPERATION: dict[str, str] = {
     "new_node": "new_node_response",
     "output_graph": "output_graph_success",
     "init": "ok_true",
-    "new_link": "ok_true",
+    "new_link": "new_link_response",
     "remove": "ok_true",
+    "rename_instance": "rename_instance_response",
     "register_node_type": "ok_true",
     "register_link_type": "ok_true",
+    "register_nested_node_type": "ok_true",
+    "register_nested_link_type": "ok_true",
 }
 
 

@@ -24,6 +24,11 @@ def test_validate_response_schema_load_error(monkeypatch: pytest.MonkeyPatch) ->
     assert str(result.err_value) == "missing"
 
 
+def test_validate_response_unknown_operation() -> None:
+    with pytest.raises(KeyError, match="unknown operation"):
+        validate_response("not_an_operation", {"ok": True})
+
+
 def test_validate_response_non_validation_schema_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

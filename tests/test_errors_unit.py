@@ -21,6 +21,8 @@ from pyfits._errors import (
     [
         (0, FitsStatus.OK),
         (-7, FitsStatus.ERR_ALREADY_INITIALIZED),
+        (-12, FitsStatus.ERR_SUBGRAPH_INVALID),
+        (-13, FitsStatus.ERR_UNKNOWN_NESTED_TYPE),
         (999, None),
     ],
 )

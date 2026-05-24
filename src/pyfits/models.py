@@ -15,16 +15,57 @@ _OBJECT_TYPE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 ASCII letter first, then letters, digits, underscores, or hyphens.
 """
 
+_AUTONUMBER_SEGMENT_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*-[1-9][0-9]*$")
+"""Autonumber-shaped id segment: ``{prefix}-{n}`` with positive ``n``."""
+
+_FORBIDDEN_FS_CHARS = '<>:"|?*\\'
+"""NTFS-forbidden characters plus backslash (mirrors libfits instance_name.zig)."""
+
+
+def _wire_id_from_response(raw: str) -> str:
+    """Strip optional title suffix from libfits display ids in create responses."""
+    if "/" not in raw:
+        return raw.split(" ", 1)[0]
+    parts = raw.split("/")
+    parts[-1] = parts[-1].split(" ", 1)[0]
+    return "/".join(parts)
+
+
+def _validate_segment(segment: str) -> None:
+    if not segment:
+        msg = "id segment must be non-empty"
+        raise ValueError(msg)
+    if _AUTONUMBER_SEGMENT_RE.fullmatch(segment):
+        return
+    if any(c.isspace() for c in segment):
+        msg = "id segment must not contain whitespace"
+        raise ValueError(msg)
+    if "/" in segment or "\\" in segment:
+        msg = "id segment must not contain path separators"
+        raise ValueError(msg)
+    if any(c in _FORBIDDEN_FS_CHARS for c in segment):
+        msg = "id segment contains forbidden characters"
+        raise ValueError(msg)
+    if segment.endswith(".") or segment.endswith(" "):
+        msg = "id segment must not end with '.' or space"
+        raise ValueError(msg)
+    if "." in segment:
+        msg = "id segment must not contain '.'"
+        raise ValueError(msg)
+    if any(ord(c) < 32 or ord(c) == 127 for c in segment):
+        msg = "id segment must not contain ASCII control characters"
+        raise ValueError(msg)
+
 
 @dataclass(frozen=True, slots=True)
 class ObjectTypeName:
-    """Validated object type name for node allocation.
+    """Validated object type name for node creation.
 
     Type name strings must be non-empty, start with an ASCII letter, and contain
     only ASCII letters, digits, underscores, and hyphens thereafter.
 
     Attributes:
-        value: Validated type name string sent to libfits as ``id_prefix``.
+        value: Validated type name string sent to libfits as ``type_name``.
     """
 
     value: str
@@ -41,8 +82,121 @@ class ObjectTypeName:
         return self.value
 
 
+@dataclass(frozen=True, slots=True)
+class TargetId:
+    """Single-segment id requested at create time (never returned from libfits).
+
+    Attributes:
+        value: Validated single-segment id serialized to wire ``instance_id``.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        if "/" in self.value:
+            msg = "TargetId must be a single segment"
+            raise ValueError(msg)
+        _validate_segment(self.value)
+
+    @classmethod
+    def parse(cls, raw: str) -> TargetId:
+        """Parse and validate ``raw`` as a :class:`TargetId`.
+
+        Args:
+            raw: Single-segment id string.
+
+        Returns:
+            Validated target id.
+
+        Raises:
+            ValueError: When ``raw`` is not a valid target id.
+        """
+        return cls(raw)
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True, slots=True)
+class Id:
+    """Canonical validated graph object identifier (libfits wire/API form).
+
+    Attributes:
+        value: Repo-logical id string (one or more ``/``-separated segments).
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        if not self.value:
+            msg = "Id must be non-empty"
+            raise ValueError(msg)
+        segments = self.value.split("/")
+        if any(not segment for segment in segments):
+            msg = "Id must not contain empty path segments"
+            raise ValueError(msg)
+        for segment in segments:
+            _validate_segment(segment)
+
+    @classmethod
+    def parse(cls, raw: str) -> Id:
+        """Parse and validate ``raw`` as an :class:`Id`.
+
+        Args:
+            raw: Canonical id string.
+
+        Returns:
+            Validated id.
+
+        Raises:
+            ValueError: When ``raw`` is not a valid id.
+        """
+        return cls(raw)
+
+    @classmethod
+    def try_parse(cls, raw: str) -> Id | None:
+        """Return an :class:`Id` for ``raw``, or ``None`` when invalid.
+
+        Args:
+            raw: Candidate id string.
+
+        Returns:
+            Parsed id, or ``None`` when validation fails.
+        """
+        try:
+            return cls(raw)
+        except ValueError:
+            return None
+
+    @property
+    def segments(self) -> tuple[str, ...]:
+        """Return path segments of this id."""
+        return tuple(self.value.split("/"))
+
+    @classmethod
+    def join(cls, parent: Id, target: TargetId) -> Id:
+        """Join a parent id and create-time target segment.
+
+        Args:
+            parent: Parent canonical id.
+            target: Single-segment target id.
+
+        Returns:
+            Combined canonical id.
+        """
+        if not parent.value:
+            return cls(target.value)
+        return cls(f"{parent.value}/{target.value}")
+
+    def __str__(self) -> str:
+        return self.value
+
+
 Severity = Literal["info", "warn", "error"]
 """Validation issue severity level reported by libfits."""
+
+EdgeKind = Literal["references", "registered_link"]
+"""Edge relationship kind in serialized graph output."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +213,7 @@ class ValidationIssue:
     severity: Severity
     code: str
     message: str
-    object_id: str | None = None
+    object_id: Id | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +248,53 @@ class ValidateResult:
     protocol_version: int | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class GraphNode:
+    """One node in a serialized repository graph.
+
+    Attributes:
+        id: Canonical node id.
+        parent_id: Parent id when nested nodes are included in graph output.
+    """
+
+    id: Id
+    parent_id: Id | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GraphEdge:
+    """One edge in a serialized repository graph.
+
+    Attributes:
+        from_id: Source node id.
+        to_id: Target node id.
+        kind: Relationship semantics.
+        link_type: Registered link type name when ``kind`` is ``registered_link``.
+        id: Canonical link id for nested edges when present.
+        parent_id: Parent id for nested edges when present.
+    """
+
+    from_id: Id
+    to_id: Id
+    kind: EdgeKind
+    link_type: str
+    id: Id | None = None
+    parent_id: Id | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Graph:
+    """Serialized repository graph snapshot.
+
+    Attributes:
+        nodes: Graph node vertices.
+        edges: Directed graph edges.
+    """
+
+    nodes: tuple[GraphNode, ...]
+    edges: tuple[GraphEdge, ...]
+
+
 def _schema_err(message: str, *, operation: str) -> Err[FitsError]:
     return Err(
         FitsSchemaError(
@@ -113,6 +314,44 @@ def _require_dict(
         msg = f"{operation} success response missing {field}"
         return _schema_err(msg, operation=operation)
     return Ok(value)
+
+
+def _parse_id_field(
+    raw: Any,
+    *,
+    operation: str,
+    field: str,
+    required: bool = True,
+) -> Result[Id | None, FitsError]:
+    if raw is None:
+        if required:
+            msg = f"{operation} success response missing {field}"
+            return _schema_err(msg, operation=operation)
+        return Ok(None)
+    if not isinstance(raw, str):
+        msg = f"{operation} success response {field} must be a string"
+        return _schema_err(msg, operation=operation)
+    parsed = Id.try_parse(raw)
+    if parsed is None:
+        msg = f"{operation} success response has invalid {field}: {raw!r}"
+        return _schema_err(msg, operation=operation)
+    return Ok(parsed)
+
+
+def _parse_required_id(
+    raw: Any,
+    *,
+    operation: str,
+    field: str,
+) -> Result[Id, FitsError]:
+    match _parse_id_field(raw, operation=operation, field=field, required=True):
+        case Err(error):
+            return Err(error)
+        case Ok(value):
+            if value is None:
+                msg = f"{operation} success response missing {field}"
+                return _schema_err(msg, operation=operation)
+            return Ok(value)
 
 
 def parse_validate_result(doc: dict[str, Any]) -> Result[ValidateResult, FitsError]:
@@ -157,7 +396,9 @@ def parse_validate_result(doc: dict[str, Any]) -> Result[ValidateResult, FitsErr
             msg = "validation issue missing code or message"
             return _schema_err(msg, operation=operation)
         oid = item.get("object_id")
-        object_id = oid if isinstance(oid, str) else None
+        object_id: Id | None = None
+        if isinstance(oid, str):
+            object_id = Id.try_parse(oid)
         validation_issues.append(
             ValidationIssue(
                 severity=sev,
@@ -204,37 +445,180 @@ def parse_validate_result(doc: dict[str, Any]) -> Result[ValidateResult, FitsErr
     )
 
 
-def parse_new_node_id(doc: dict[str, Any]) -> Result[str, FitsError]:
+def parse_new_node_id(doc: dict[str, Any]) -> Result[Id, FitsError]:
     """Return ``node_id`` from a ``new_node`` success response.
 
     Args:
         doc: Parsed ``new_node`` success response with ``ok: true``.
 
     Returns:
-        ``Ok(node_id)`` on success, or ``Err(FitsError)`` when ``node_id`` is
+        ``Ok(Id)`` on success, or ``Err(FitsError)`` when ``node_id`` is missing
+        or invalid.
+    """
+    raw = doc.get("node_id")
+    if not isinstance(raw, str):
+        return _parse_required_id(
+            raw,
+            operation="new_node",
+            field="node_id",
+        )
+    return _parse_required_id(
+        _wire_id_from_response(raw),
+        operation="new_node",
+        field="node_id",
+    )
+
+
+def parse_new_link_id(doc: dict[str, Any]) -> Result[Id, FitsError]:
+    """Return ``link_id`` from a ``new_link`` success response.
+
+    Args:
+        doc: Parsed ``new_link`` success response with ``ok: true``.
+
+    Returns:
+        ``Ok(Id)`` on success, or ``Err(FitsError)`` when ``link_id`` is missing
+        or invalid.
+    """
+    return _parse_required_id(
+        doc.get("link_id"),
+        operation="new_link",
+        field="link_id",
+    )
+
+
+def parse_rename_instance_id(doc: dict[str, Any]) -> Result[Id, FitsError]:
+    """Return ``instance_id`` from a ``rename_instance`` success response.
+
+    Args:
+        doc: Parsed ``rename_instance`` success response with ``ok: true``.
+
+    Returns:
+        ``Ok(Id)`` on success, or ``Err(FitsError)`` when ``instance_id`` is
         missing or invalid.
     """
-    operation = "new_node"
-    node_id = doc.get("node_id")
-    if not isinstance(node_id, str):
-        msg = "new_node success response missing node_id"
-        return _schema_err(msg, operation=operation)
-    return Ok(node_id)
+    return _parse_required_id(
+        doc.get("instance_id"),
+        operation="rename_instance",
+        field="instance_id",
+    )
 
 
-def parse_output_graph(doc: dict[str, Any]) -> Result[dict[str, Any], FitsError]:
-    """Return the graph object from an ``output_graph`` success response.
+def parse_output_graph(doc: dict[str, Any]) -> Result[Graph, FitsError]:
+    """Return a typed graph from an ``output_graph`` success response.
 
     Args:
         doc: Parsed ``output_graph`` success response with ``ok: true``.
 
     Returns:
-        ``Ok(graph)`` on success, or ``Err(FitsError)`` when ``graph`` is missing
-        or invalid.
+        ``Ok(Graph)`` on success, or ``Err(FitsError)`` when the graph shape is
+        missing or invalid.
     """
     operation = "output_graph"
     graph = doc.get("graph")
     if not isinstance(graph, dict):
         msg = "output_graph success response missing graph object"
         return _schema_err(msg, operation=operation)
-    return Ok(graph)
+
+    nodes_raw = graph.get("nodes")
+    edges_raw = graph.get("edges")
+    if not isinstance(nodes_raw, list):
+        msg = "output_graph graph missing nodes array"
+        return _schema_err(msg, operation=operation)
+    if not isinstance(edges_raw, list):
+        msg = "output_graph graph missing edges array"
+        return _schema_err(msg, operation=operation)
+
+    nodes: list[GraphNode] = []
+    for item in nodes_raw:
+        if not isinstance(item, dict):
+            msg = "graph node must be an object"
+            return _schema_err(msg, operation=operation)
+        match _parse_required_id(
+            item.get("id"),
+            operation=operation,
+            field="node.id",
+        ):
+            case Err(error):
+                return Err(error)
+            case Ok(node_id):
+                pass
+        node_parent_id: Id | None = None
+        if "parent_id" in item:
+            match _parse_id_field(
+                item.get("parent_id"),
+                operation=operation,
+                field="node.parent_id",
+            ):
+                case Err(error):
+                    return Err(error)
+                case Ok(parsed_parent):
+                    node_parent_id = parsed_parent
+        nodes.append(GraphNode(id=node_id, parent_id=node_parent_id))
+
+    edges: list[GraphEdge] = []
+    for item in edges_raw:
+        if not isinstance(item, dict):
+            msg = "graph edge must be an object"
+            return _schema_err(msg, operation=operation)
+        kind = item.get("kind")
+        link_type = item.get("link_type")
+        if kind not in ("references", "registered_link"):
+            msg = f"invalid graph edge kind: {kind!r}"
+            return _schema_err(msg, operation=operation)
+        if not isinstance(link_type, str):
+            msg = "graph edge missing link_type"
+            return _schema_err(msg, operation=operation)
+        match _parse_required_id(
+            item.get("from_id"),
+            operation=operation,
+            field="edge.from_id",
+        ):
+            case Err(error):
+                return Err(error)
+            case Ok(from_id):
+                pass
+        match _parse_required_id(
+            item.get("to_id"),
+            operation=operation,
+            field="edge.to_id",
+        ):
+            case Err(error):
+                return Err(error)
+            case Ok(to_id):
+                pass
+        edge_id: Id | None = None
+        if "id" in item:
+            match _parse_id_field(
+                item.get("id"),
+                operation=operation,
+                field="edge.id",
+                required=False,
+            ):
+                case Err(error):
+                    return Err(error)
+                case Ok(parsed_edge_id):
+                    edge_id = parsed_edge_id
+        edge_parent_id: Id | None = None
+        if "parent_id" in item:
+            match _parse_id_field(
+                item.get("parent_id"),
+                operation=operation,
+                field="edge.parent_id",
+                required=False,
+            ):
+                case Err(error):
+                    return Err(error)
+                case Ok(parsed_parent):
+                    edge_parent_id = parsed_parent
+        edges.append(
+            GraphEdge(
+                from_id=from_id,
+                to_id=to_id,
+                kind=kind,
+                link_type=link_type,
+                id=edge_id,
+                parent_id=edge_parent_id,
+            )
+        )
+
+    return Ok(Graph(nodes=tuple(nodes), edges=tuple(edges)))

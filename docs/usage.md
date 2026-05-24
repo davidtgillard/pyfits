@@ -7,7 +7,7 @@ Open a repository session with `Repo.open()` and a context manager (recommended)
 ```python
 from pathlib import Path
 
-from pyfits import ObjectTypeName, Ok, Repo
+from pyfits import Id, ObjectTypeName, Ok, Repo, TargetId
 
 match Repo.open(Path("my-product")):
     case Ok(repo):
@@ -22,6 +22,24 @@ match Repo.open(Path("my-product")):
                             print(result.summary.error_count, len(result.validation_issues))
     case Err(err):
         ...
+```
+
+### Explicit target ids and nested create
+
+Use `TargetId` when requesting a specific single-segment id at create time (serialized to libfits as `instance_id`). libfits returns canonical `Id` values:
+
+```python
+match repo.new_node(ObjectTypeName("REQ"), target_id=TargetId("login-flow")):
+    case Ok(node_id):
+        assert node_id == Id("login-flow")
+
+match repo.new_node(
+    ObjectTypeName("section"),
+    container_id=Id("REQ-1"),
+    target_id=TargetId("overview"),
+):
+    case Ok(nested_id):
+        assert nested_id == Id("REQ-1/overview")
 ```
 
 You can optionally open against a registry snapshot:
@@ -41,7 +59,7 @@ Every libfits JSON response is validated before returning to callers:
 1. **JSON Schema** — schemas are loaded from the embedded `FITS_*_schema()` accessors in the loaded `libfits.so` (not vendored files). Failures return `Err(FitsSchemaError)`.
 2. **Invariants** — e.g. successful `validate()` must include `validation_issues` and `summary` (the embedded `validate_response` schema only requires `ok`).
 
-Operations without a libfits success schema (`init`, `new_link`, `remove`, `register_*`, `output_graph`) use a minimal local `ok: true` schema. `output_graph` success additionally requires a `graph` object in Python.
+Operations without a dedicated libfits success schema (`init`, `remove`, `register_*`, nested register aliases) use a minimal local `ok: true` schema. `output_graph` success is validated locally and parsed into a typed `Graph`.
 
 ## Inspecting schemas
 

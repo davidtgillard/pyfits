@@ -131,8 +131,11 @@ def _configure_lib(lib: CDLL) -> None:
         "FITS_new_node",
         "FITS_new_link",
         "FITS_remove_obj",
+        "FITS_rename_instance",
         "FITS_register_node_type",
         "FITS_register_link_type",
+        "FITS_register_nested_node_type",
+        "FITS_register_nested_link_type",
     ):
         fn = getattr(lib, name)
         fn.argtypes = json_repo_args
@@ -145,10 +148,15 @@ def _configure_lib(lib: CDLL) -> None:
         "FITS_new_node_request_schema",
         "FITS_new_node_response_schema",
         "FITS_new_link_request_schema",
+        "FITS_new_link_response_schema",
         "FITS_remove_request_schema",
         "FITS_init_request_schema",
         "FITS_register_node_type_request_schema",
         "FITS_register_link_type_request_schema",
+        "FITS_rename_instance_request_schema",
+        "FITS_rename_instance_response_schema",
+        "FITS_register_nested_node_type_request_schema",
+        "FITS_register_nested_link_type_request_schema",
         "FITS_error_response_schema",
     )
     for name in schema_names:

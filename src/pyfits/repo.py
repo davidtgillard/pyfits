@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 import ctypes
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from pyfits import _json, _native
 from pyfits._errors import FitsError
 from pyfits.models import (
+    Graph,
+    Id,
     ObjectTypeName,
+    TargetId,
     ValidateResult,
+    parse_new_link_id,
     parse_new_node_id,
     parse_output_graph,
+    parse_rename_instance_id,
     parse_validate_result,
 )
 from pyfits.result import Err, Ok, Result
@@ -22,6 +28,15 @@ PROTOCOL_VERSION = 1
 
 # libfits JSON parsers that accept protocol_version (ignore_unknown_fields).
 _OPS_WITH_PROTOCOL_VERSION = frozenset({"validate", "init", "output_graph"})
+
+
+def _call_parsed[T](
+    operation: str,
+    handle: ctypes.c_void_p,
+    request: dict[str, Any] | None,
+    parser: Callable[[dict[str, Any]], Result[T, FitsError]],
+) -> Result[T, FitsError]:
+    return _json.call_and_parse(operation, handle, request).and_then(parser)
 
 
 def _with_protocol_version(operation: str, request: dict[str, Any]) -> dict[str, Any]:
@@ -145,6 +160,8 @@ class Repo:
         abstract: bool = False,
         extends: str | None = None,
         create_folder: bool = False,
+        container_node: str | None = None,
+        autonumber: bool = True,
     ) -> Result[None, FitsError]:
         """Register a node type in the repository registry.
 
@@ -153,6 +170,10 @@ class Repo:
             abstract: When ``True``, mark the type as abstract.
             extends: Optional parent type name for inheritance.
             create_folder: When ``True``, create on-disk folders for the type.
+            container_node: When set, register a nested-scoped type for nodes
+                whose type matches this container name.
+            autonumber: When ``True`` (default), omitting ``target_id`` on
+                create allocates ``{type_name}-{n}``.
 
         Returns:
             ``Ok(None)`` on success, or ``Err(FitsError)`` on failure.
@@ -164,9 +185,12 @@ class Repo:
             "type_name": type_name,
             "abstract": abstract,
             "create_folder": create_folder,
+            "autonumber": autonumber,
         }
         if extends is not None:
             request["extends"] = extends
+        if container_node is not None:
+            request["container_node"] = container_node
         match _json.call_and_parse(
             "register_node_type",
             self._require_handle(),
@@ -186,6 +210,9 @@ class Repo:
         create_folder: bool = False,
     ) -> Result[None, FitsError]:
         """Register a link type in the repository registry.
+
+        Nested vs root scope is determined by the registered endpoint types; libfits
+        treats nested link registration as the same operation.
 
         Args:
             link_type: Registry name for the link type.
@@ -217,71 +244,89 @@ class Repo:
 
     def new_node(
         self,
-        id_prefix: ObjectTypeName,
+        type_name: ObjectTypeName,
         *,
+        container_id: Id | None = None,
+        target_id: TargetId | None = None,
         markdown: bool = False,
         title: str | None = None,
-    ) -> Result[str, FitsError]:
+    ) -> Result[Id, FitsError]:
         """Create a new node in the repository graph.
 
         Args:
-            id_prefix: Registered object type name used to allocate the new id.
+            type_name: Registered object type name for the new node.
+            container_id: Optional parent canonical id for nested create.
+            target_id: Optional explicit single-segment id (wire
+                ``instance_id``); omit for autonumber allocation.
             markdown: When ``True``, create the node as markdown-backed content.
             title: Optional human-readable node title.
 
         Returns:
-            ``Ok(node_id)`` on success, or ``Err(FitsError)`` on failure.
+            ``Ok(Id)`` on success, or ``Err(FitsError)`` on failure.
 
         Raises:
             RuntimeError: When the session is already closed.
         """
         request: dict[str, Any] = {
-            "id_prefix": id_prefix.value,
+            "type_name": type_name.value,
             "markdown": markdown,
         }
+        if container_id is not None:
+            request["container_id"] = container_id.value
+        if target_id is not None:
+            request["instance_id"] = target_id.value
         if title is not None:
             request["title"] = title
-        match _json.call_and_parse("new_node", self._require_handle(), request):
-            case Err(error):
-                return Err(error)
-            case Ok(doc):
-                return parse_new_node_id(doc)
+        return _call_parsed(
+            "new_node",
+            self._require_handle(),
+            request,
+            parse_new_node_id,
+        )
 
     def new_link(
         self,
         link_type: str,
-        in_id: str,
-        out_id: str,
-    ) -> Result[None, FitsError]:
+        in_id: Id,
+        out_id: Id,
+        *,
+        target_id: TargetId | None = None,
+    ) -> Result[Id, FitsError]:
         """Create a link between two existing nodes.
 
         Args:
             link_type: Registered link type name.
-            in_id: Input endpoint node id.
-            out_id: Output endpoint node id.
+            in_id: Input endpoint canonical node id.
+            out_id: Output endpoint canonical node id.
+            target_id: Optional explicit single-segment link id (wire
+                ``instance_id``); omit for autonumber allocation.
 
         Returns:
-            ``Ok(None)`` on success, or ``Err(FitsError)`` on failure.
+            ``Ok(Id)`` with the new link id on success, or ``Err(FitsError)`` on
+            failure.
 
         Raises:
             RuntimeError: When the session is already closed.
         """
-        request = {
+        request: dict[str, Any] = {
             "link_type": link_type,
-            "in_id": in_id,
-            "out_id": out_id,
+            "in_id": in_id.value,
+            "out_id": out_id.value,
         }
-        match _json.call_and_parse("new_link", self._require_handle(), request):
-            case Err(error):
-                return Err(error)
-            case Ok(_):
-                return Ok(None)
+        if target_id is not None:
+            request["instance_id"] = target_id.value
+        return _call_parsed(
+            "new_link",
+            self._require_handle(),
+            request,
+            parse_new_link_id,
+        )
 
-    def remove(self, object_id: str) -> Result[None, FitsError]:
+    def remove(self, object_id: Id) -> Result[None, FitsError]:
         """Remove a node or link by id.
 
         Args:
-            object_id: Graph object id to remove.
+            object_id: Canonical graph object id to remove.
 
         Returns:
             ``Ok(None)`` on success, or ``Err(FitsError)`` on failure.
@@ -290,7 +335,7 @@ class Repo:
             RuntimeError: When the session is already closed.
         """
         request = {
-            "object_id": object_id,
+            "object_id": object_id.value,
         }
         match _json.call_and_parse("remove", self._require_handle(), request):
             case Err(error):
@@ -298,15 +343,46 @@ class Repo:
             case Ok(_):
                 return Ok(None)
 
+    def rename_instance(
+        self,
+        old_id: Id,
+        new_id: Id,
+    ) -> Result[Id, FitsError]:
+        """Rename a live instance id (GUID stable).
+
+        Args:
+            old_id: Current canonical instance id.
+            new_id: New canonical instance id in the same scope.
+
+        Returns:
+            ``Ok(Id)`` with the new id on success, or ``Err(FitsError)`` on
+            failure.
+
+        Raises:
+            RuntimeError: When the session is already closed.
+        """
+        request = {
+            "old_id": old_id.value,
+            "new_id": new_id.value,
+        }
+        return _call_parsed(
+            "rename_instance",
+            self._require_handle(),
+            request,
+            parse_rename_instance_id,
+        )
+
     def validate(
         self,
         *,
         include_link_endpoints: bool = True,
+        include_nested_subgraphs: bool = True,
     ) -> Result[ValidateResult, FitsError]:
         """Validate the repository graph.
 
         Args:
             include_link_endpoints: When ``True``, validate link endpoint nodes.
+            include_nested_subgraphs: When ``True``, validate nested subgraphs.
 
         Returns:
             ``Ok(ValidateResult)`` on success, or ``Err(FitsError)`` on failure.
@@ -316,33 +392,47 @@ class Repo:
         """
         request = _with_protocol_version(
             "validate",
-            {"include_link_endpoints": include_link_endpoints},
+            {
+                "include_link_endpoints": include_link_endpoints,
+                "include_nested_subgraphs": include_nested_subgraphs,
+            },
         )
-        match _json.call_and_parse("validate", self._require_handle(), request):
-            case Err(error):
-                return Err(error)
-            case Ok(doc):
-                return parse_validate_result(doc)
+        return _call_parsed(
+            "validate",
+            self._require_handle(),
+            request,
+            parse_validate_result,
+        )
 
     def output_graph(
         self,
         *,
         pretty_print: bool = False,
-    ) -> Result[dict[str, Any], FitsError]:
+        include_nested: bool = False,
+    ) -> Result[Graph, FitsError]:
         """Serialize the repository graph.
 
         Args:
             pretty_print: When ``True``, request pretty-printed JSON from libfits.
+            include_nested: When ``True``, merge nested nodes and edges into the
+                graph arrays.
 
         Returns:
-            ``Ok(graph)`` on success, or ``Err(FitsError)`` on failure.
+            ``Ok(Graph)`` on success, or ``Err(FitsError)`` on failure.
 
         Raises:
             RuntimeError: When the session is already closed.
         """
-        request = _with_protocol_version("output_graph", {"pretty_print": pretty_print})
-        match _json.call_and_parse("output_graph", self._require_handle(), request):
-            case Err(error):
-                return Err(error)
-            case Ok(doc):
-                return parse_output_graph(doc)
+        request = _with_protocol_version(
+            "output_graph",
+            {
+                "pretty_print": pretty_print,
+                "include_nested": include_nested,
+            },
+        )
+        return _call_parsed(
+            "output_graph",
+            self._require_handle(),
+            request,
+            parse_output_graph,
+        )

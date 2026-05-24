@@ -77,7 +77,10 @@ def test_load_library_cdll_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.err_value.code == "lib_load_failed"
 
 
-def test_open_repo_last_error_load_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_open_repo_last_error_load_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     lib = _bundled_lib()
     monkeypatch.setenv("PYFITS_LIB_PATH", str(lib))
     mock_lib = _native.load_library().unwrap()
@@ -93,7 +96,8 @@ def test_open_repo_last_error_load_failure(monkeypatch: pytest.MonkeyPatch) -> N
         lambda _opts: None,
     )
     monkeypatch.setattr(_native, "_LIB", mock_lib)
-    result = _native.open_repo(b"/tmp/repo")
+    repo_path = tmp_path / "repo"
+    result = _native.open_repo(str(repo_path).encode())
     assert isinstance(result, Err)
     assert str(result.err_value) == "diag failed"
 
@@ -189,7 +193,7 @@ def test_decode_c_string_int_pointer() -> None:
     assert _native._decode_c_string(raw) == "from-pointer"
 
 
-def test_open_repo_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_open_repo_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     lib = _bundled_lib()
     monkeypatch.setenv("PYFITS_LIB_PATH", str(lib))
     mock_lib = _native.lib()
@@ -199,12 +203,28 @@ def test_open_repo_failure(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda _opts: None,
     )
     monkeypatch.setattr(_native, "_LIB", mock_lib)
-    result = _native.open_repo(b"/tmp/repo")
+    result = _native.open_repo(str(tmp_path / "repo").encode())
     assert isinstance(result, Err)
     assert "FITS_CORE_repo_open failed" in str(result.err_value)
 
 
-def test_open_repo_bytes_registry_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_open_repo_load_library_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        _native,
+        "load_library",
+        lambda: Err(FitsError("missing", code="lib_not_found")),
+    )
+    result = _native.open_repo(str(tmp_path / "repo"))
+    assert isinstance(result, Err)
+
+
+def test_open_repo_str_registry_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     lib = _bundled_lib()
     monkeypatch.setenv("PYFITS_LIB_PATH", str(lib))
     mock_lib = _native.lib()
@@ -217,10 +237,38 @@ def test_open_repo_bytes_registry_snapshot(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(mock_lib, "FITS_CORE_repo_open", fake_open)
     monkeypatch.setattr(_native, "_LIB", mock_lib)
-    result = _native.open_repo(b"/tmp/repo", registry_snapshot=b"/tmp/snap")
+    repo_path = tmp_path / "repo"
+    snap_path = tmp_path / "snap"
+    result = _native.open_repo(str(repo_path), registry_snapshot=str(snap_path))
+    assert isinstance(result, Ok)
+    assert captured["snapshot"] == str(snap_path).encode()
+
+
+def test_open_repo_bytes_registry_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    lib = _bundled_lib()
+    monkeypatch.setenv("PYFITS_LIB_PATH", str(lib))
+    mock_lib = _native.lib()
+    captured: dict[str, object] = {}
+
+    def fake_open(opts: object) -> ctypes.c_void_p:
+        opts_ptr = ctypes.cast(opts, ctypes.POINTER(_native.FitsRepoOpenOptions))
+        captured["snapshot"] = opts_ptr.contents.registry_snapshot_path
+        return ctypes.c_void_p(1)
+
+    monkeypatch.setattr(mock_lib, "FITS_CORE_repo_open", fake_open)
+    monkeypatch.setattr(_native, "_LIB", mock_lib)
+    repo_path = tmp_path / "repo"
+    snap_path = tmp_path / "snap"
+    result = _native.open_repo(
+        str(repo_path).encode(),
+        registry_snapshot=str(snap_path).encode(),
+    )
     assert isinstance(result, Ok)
     assert result.ok_value.value == 1
-    assert captured["snapshot"] == b"/tmp/snap"
+    assert captured["snapshot"] == str(snap_path).encode()
 
 
 def test_call_json_no_request_json(monkeypatch: pytest.MonkeyPatch) -> None:

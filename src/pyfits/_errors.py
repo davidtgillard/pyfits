@@ -27,6 +27,8 @@ class FitsStatus(IntEnum):
         ERR_IO: Filesystem I/O error.
         ERR_NOT_IMPLEMENTED: Operation not implemented in this libfits build.
         ERR_INTERNAL: Unexpected internal libfits error.
+        ERR_SUBGRAPH_INVALID: Nested subgraph index or layout is invalid.
+        ERR_UNKNOWN_NESTED_TYPE: Nested type not registered for the container.
     """
 
     OK = 0  # Operation succeeded (FITS_OK).
@@ -41,6 +43,8 @@ class FitsStatus(IntEnum):
     ERR_IO = -9  # Filesystem I/O error.
     ERR_NOT_IMPLEMENTED = -10  # Operation not implemented.
     ERR_INTERNAL = -11  # Unexpected internal error.
+    ERR_SUBGRAPH_INVALID = -12  # Nested subgraph index or layout invalid.
+    ERR_UNKNOWN_NESTED_TYPE = -13  # Nested type not registered for container.
 
 
 class FitsError(Exception):

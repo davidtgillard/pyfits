@@ -8,7 +8,12 @@ import pytest
 
 from pyfits import _native
 from pyfits._errors import FitsError, FitsSchemaError
-from pyfits._schemas import clear_schema_cache, schema_dict, validator
+from pyfits._schemas import (
+    clear_schema_cache,
+    schema_dict,
+    validate_document,
+    validator,
+)
 from pyfits.result import Err, Ok
 
 
@@ -62,3 +67,42 @@ def test_validator_returns_err_when_schema_load_fails(
     )
     result = validator("init_request")
     assert isinstance(result, Err)
+
+
+def test_validate_document_success_for_local_schemas() -> None:
+    assert isinstance(validate_document("ok_true", {"ok": True}), Ok)
+    assert isinstance(
+        validate_document(
+            "output_graph_success",
+            {"ok": True, "graph": {"nodes": [], "edges": []}},
+        ),
+        Ok,
+    )
+
+
+def test_validate_document_invalid_instance() -> None:
+    result = validate_document("ok_true", {"ok": False})
+    assert isinstance(result, Err)
+
+
+def test_schema_dict_load_library_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        _native,
+        "load_library",
+        lambda: Err(FitsError("missing", code="lib_not_found")),
+    )
+    result = schema_dict("init_request")
+    assert isinstance(result, Err)
+
+
+def test_schema_dict_uses_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_schema_cache()
+    mock_lib = MagicMock()
+    mock_lib.FITS_init_request_schema.return_value = b'{"type":"object"}'
+    monkeypatch.setattr(_native, "_LIB", mock_lib)
+    monkeypatch.setattr(_native, "load_library", lambda: Ok(mock_lib))
+    first = schema_dict("init_request")
+    second = schema_dict("init_request")
+    assert isinstance(first, Ok)
+    assert isinstance(second, Ok)
+    mock_lib.FITS_init_request_schema.assert_called_once()

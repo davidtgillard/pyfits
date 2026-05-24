@@ -8,6 +8,12 @@ Public exports:
     ObjectTypeName:
         Validated object type name for ``new_node``.
 
+    Id, TargetId:
+        Validated canonical and create-time target identifiers.
+
+    Graph, GraphNode, GraphEdge:
+        Typed models for ``output_graph`` responses.
+
     Result, Ok, Err:
         Generic result type for operational libfits failures (from the
         `result <https://pypi.org/project/result/>`_ package).
@@ -39,7 +45,12 @@ from pyfits._version_abi import (
     libfits_version_packed,
 )
 from pyfits.models import (
+    Graph,
+    GraphEdge,
+    GraphNode,
+    Id,
     ObjectTypeName,
+    TargetId,
     ValidateResult,
     ValidateSummary,
     ValidationIssue,
@@ -57,10 +68,15 @@ __all__ = [
     "FitsError",
     "FitsSchemaError",
     "FitsStatus",
+    "Graph",
+    "GraphEdge",
+    "GraphNode",
+    "Id",
     "ObjectTypeName",
     "Ok",
     "Repo",
     "Result",
+    "TargetId",
     "ValidateResult",
     "ValidateSummary",
     "ValidationIssue",
