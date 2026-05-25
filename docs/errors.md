@@ -6,9 +6,9 @@ pyfits returns operational failures as `Result[..., FitsError]` (`Ok` / `Err`) i
 |-----------|---------|
 | `Err(FitsError)` | `ok: false` JSON response, negative C status, or missing libfits |
 | `Err(FitsSchemaError)` | Response JSON failed schema or invariant checks |
-| `ValueError` | Invalid caller input (e.g. `ObjectTypeName`, `Id`, `TargetId`) |
+| `ValueError` | Invalid caller input (e.g. `ObjectTypeName`, `Id`, `TargetId`, unknown `SchemaId`) |
 | `RuntimeError` | Using `Repo` after `close()` (check :attr:`~pyfits.Repo.is_closed` first) |
-| `KeyError` | Invalid `schemas.schema_dict` id |
+| `KeyError` | Unknown operation for response validation |
 
 ## Result-based operational errors
 

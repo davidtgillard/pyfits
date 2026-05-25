@@ -66,10 +66,10 @@ Operations without a dedicated libfits success schema (`init`, `remove`, `regist
 ```python
 from pyfits import Ok, schemas
 
-match schemas.schema_dict("validate_response"):
+match schemas.schema_dict(schemas.SchemaId.VALIDATE_RESPONSE):
     case Ok(doc):
         ...
-match schemas.validator("error_response"):
+match schemas.validator(schemas.SchemaId.ERROR_RESPONSE):
     case Ok(v):
         v.validate({"ok": False, "error": {"code": "x", "message": "y"}})
 ```

@@ -75,10 +75,10 @@ Inspect schemas:
 ```python
 from pyfits import Ok, schemas
 
-match schemas.schema_dict("validate_response"):
+match schemas.schema_dict(schemas.SchemaId.VALIDATE_RESPONSE):
     case Ok(doc):
         ...
-match schemas.validator("error_response"):
+match schemas.validator(schemas.SchemaId.ERROR_RESPONSE):
     case Ok(v):
         v.validate({"ok": False, "error": {"code": "x", "message": "y"}})
 ```
@@ -88,9 +88,9 @@ match schemas.validator("error_response"):
 | Mechanism | Meaning |
 |-----------|---------|
 | `Result[..., FitsError]` | Operational libfits failures (`ok: false`, I/O, missing lib, schema/invariant failures) |
-| `ValueError` | Invalid `ObjectTypeName` or other caller input |
+| `ValueError` | Invalid `ObjectTypeName`, unknown `SchemaId`, or other caller input |
 | `RuntimeError` | Using a `Repo` after `close()` |
-| `KeyError` | Invalid `schemas.schema_dict` id |
+| `KeyError` | Unknown operation for response validation |
 
 `FitsError` and `FitsSchemaError` are error **payload** types carried in `Err(...)`, not control-flow exceptions on the public `Repo` API.
 

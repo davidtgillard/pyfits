@@ -10,3 +10,4 @@ Private symbols referenced from public docstrings (not part of the public API).
 .. autofunction:: pyfits._native.load_library
 
 .. autofunction:: pyfits._schemas.schema_dict
+   :no-index:

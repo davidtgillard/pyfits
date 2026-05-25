@@ -2,6 +2,9 @@
 
 Constants:
 
+    SchemaId:
+        Fixed enum of schema identifiers for :func:`schema_dict`.
+
     OK_TRUE_SCHEMA:
         Minimal success schema requiring only ``{"ok": true}``.
 
@@ -17,6 +20,7 @@ from jsonschema import Draft202012Validator
 from pyfits._schemas import (
     OK_TRUE_SCHEMA,
     SUCCESS_SCHEMA_BY_OPERATION,
+    SchemaId,
     schema_dict,
     schema_ids,
     validator,
@@ -25,6 +29,7 @@ from pyfits._schemas import (
 __all__ = [
     "OK_TRUE_SCHEMA",
     "SUCCESS_SCHEMA_BY_OPERATION",
+    "SchemaId",
     "schema_dict",
     "schema_ids",
     "validator",

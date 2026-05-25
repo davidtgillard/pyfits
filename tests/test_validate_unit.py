@@ -15,9 +15,9 @@ def test_ok_true_valid() -> None:
 
 
 def test_ok_true_rejects_false() -> None:
-    from pyfits._schemas import validate_document
+    from pyfits._schemas import SchemaId, validate_document
 
-    result = validate_document("ok_true", {"ok": False})
+    result = validate_document(SchemaId.OK_TRUE, {"ok": False})
     assert isinstance(result, Err)
 
 

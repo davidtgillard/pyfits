@@ -6,7 +6,7 @@ from typing import Any
 
 import jsonschema
 
-from pyfits._schemas import SUCCESS_SCHEMA_BY_OPERATION, validate_document
+from pyfits._schemas import SUCCESS_SCHEMA_BY_OPERATION, SchemaId, validate_document
 from pyfits.errors import FitsError, FitsSchemaError
 from pyfits.result import Err, Ok, Result
 
@@ -26,7 +26,7 @@ def validate_response(operation: str, doc: dict[str, Any]) -> Result[None, FitsE
         KeyError: When ``operation`` is unknown for success response validation.
     """
     if doc.get("ok") is False:
-        schema_id = "error_response"
+        schema_id = SchemaId.ERROR_RESPONSE
     elif operation not in SUCCESS_SCHEMA_BY_OPERATION:
         msg = f"unknown operation for response validation: {operation}"
         raise KeyError(msg)

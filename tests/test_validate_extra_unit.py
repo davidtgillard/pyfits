@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from pyfits._schemas import SchemaId
 from pyfits._validate import validate_response
 from pyfits.errors import FitsSchemaError
 from pyfits.result import Err
@@ -20,11 +21,11 @@ def test_validate_response_non_validation_schema_error(
     schema_err = FitsSchemaError(
         "bad schema",
         operation="schema",
-        schema_id="init_request",
+        schema_id=SchemaId.INIT_REQUEST,
     )
 
     def fake_validate_document(
-        _schema_id: str,
+        _schema_id: SchemaId,
         _doc: dict[str, object],
     ) -> Err[FitsSchemaError]:
         return Err(schema_err)
