@@ -244,11 +244,11 @@ def open_repo(
     )
     handle = _LIB.FITS_CORE_repo_open(ctypes.byref(opts))
     if not handle:
-        match last_error():
-            case Ok(message):
-                msg = message or "FITS_CORE_repo_open failed"
-            case Err(error):
-                msg = str(error)
+        error_result = last_error()
+        if isinstance(error_result, Err):
+            msg = str(error_result.err_value)
+        else:
+            msg = error_result.ok_value or "FITS_CORE_repo_open failed"
         return Err(FitsError(msg))
     return Ok(cast(ctypes.c_void_p, handle))
 
@@ -290,26 +290,26 @@ def call_json(
     out = ctypes.c_char_p()
     status = fn(handle, req_ptr, ctypes.byref(out))
     if not out:
-        match last_error():
-            case Ok(message):
-                err = _error_from_status(status, message)
-            case Err(error):
-                return Err(error)
+        error_result = last_error()
+        if isinstance(error_result, Err):
+            return error_result
+        err = _error_from_status(status, error_result.ok_value)
         if err is not None:
             return Err(err)
         return Ok((status, ""))
     try:
-        if out.value is None:
-            text = ""
-        else:
-            text = out.value.decode("utf-8")
+        text = "" if out.value is None else out.value.decode("utf-8")
     finally:
         _LIB.FITS_free(out)
     return Ok((status, text))
 
 
-match _load_library():
-    case Ok(loaded):
-        _LIB = loaded
-    case Err(error):
-        raise RuntimeError(str(error)) from None
+def _init_lib() -> CDLL:
+    """Load libfits at import time; raises :class:`RuntimeError` when missing."""
+    loaded = _load_library()
+    if isinstance(loaded, Err):
+        raise RuntimeError(str(loaded.err_value)) from None
+    return loaded.ok_value
+
+
+_LIB = _init_lib()

@@ -63,13 +63,6 @@ class SchemaId(StrEnum):
     OUTPUT_GRAPH_SUCCESS = "output_graph_success"
 
 
-# Schema ids embedded in libfits (``FITS_{id}_schema()``).
-_LIBFITS_SCHEMA_IDS: frozenset[SchemaId] = frozenset(
-    schema_id
-    for schema_id in SchemaId
-    if schema_id not in (SchemaId.OK_TRUE, SchemaId.OUTPUT_GRAPH_SUCCESS)
-)
-
 OK_TRUE_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -137,9 +130,6 @@ def schema_dict(schema_id: SchemaId) -> Result[dict[str, Any], FitsError]:
         return Ok(OK_TRUE_SCHEMA)
     if schema_id is SchemaId.OUTPUT_GRAPH_SUCCESS:
         return Ok(OUTPUT_GRAPH_SUCCESS_SCHEMA)
-    if schema_id not in _LIBFITS_SCHEMA_IDS:
-        msg = f"schema id is not embedded in libfits: {schema_id}"
-        raise ValueError(msg)
     cached = _SCHEMA_CACHE.get(schema_id)
     if cached is not None:
         return Ok(cached)
@@ -176,13 +166,12 @@ def validator(schema_id: SchemaId) -> Result[Draft202012Validator, FitsError]:
     cached = _VALIDATOR_CACHE.get(schema_id)
     if cached is not None:
         return Ok(cached)
-    match schema_dict(schema_id):
-        case Ok(schema):
-            compiled = Draft202012Validator(schema)
-            _VALIDATOR_CACHE[schema_id] = compiled
-            return Ok(compiled)
-        case Err(error):
-            return Err(error)
+    schema_result = schema_dict(schema_id)
+    if isinstance(schema_result, Err):
+        return schema_result
+    compiled = Draft202012Validator(schema_result.ok_value)
+    _VALIDATOR_CACHE[schema_id] = compiled
+    return Ok(compiled)
 
 
 def validate_document(
@@ -199,12 +188,11 @@ def validate_document(
         ``Ok(None)`` when ``doc`` matches the schema, or ``Err`` with a
         validation or schema-load error.
     """
-    match schema_dict(schema_id):
-        case Err(error):
-            return Err(error)
-        case Ok(schema):
-            try:
-                validate(instance=doc, schema=schema)
-            except jsonschema.ValidationError as exc:
-                return Err(exc)
-            return Ok(None)
+    schema_result = schema_dict(schema_id)
+    if isinstance(schema_result, Err):
+        return schema_result
+    try:
+        validate(instance=doc, schema=schema_result.ok_value)
+    except jsonschema.ValidationError as exc:
+        return Err(exc)
+    return Ok(None)

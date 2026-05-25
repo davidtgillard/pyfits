@@ -190,3 +190,27 @@ def test_call_and_parse_negative_status_last_error_fails(
     result = call_and_parse("init", ctypes.c_void_p(1), {})
     assert isinstance(result, Err)
     assert str(result.err_value) == "diag failed"
+
+
+def test_call_and_parse_call_json_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pyfits._json._native.call_json",
+        lambda *_args, **_kwargs: Err(FitsError("call failed")),
+    )
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
+    assert isinstance(result, Err)
+    assert str(result.err_value) == "call failed"
+
+
+def test_call_and_parse_empty_body_status_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pyfits._json._native.call_json",
+        lambda *_args, **_kwargs: Ok((0, "")),
+    )
+    monkeypatch.setattr(
+        "pyfits._json._native.last_error",
+        lambda: Ok(""),
+    )
+    result = call_and_parse("init", ctypes.c_void_p(1), {})
+    assert isinstance(result, Ok)
+    assert result.ok_value == {}

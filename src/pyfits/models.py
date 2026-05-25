@@ -351,14 +351,13 @@ def _parse_required_id(
     operation: str,
     field: str,
 ) -> Result[Id, FitsError]:
-    match _parse_id_field(raw, operation=operation, field=field, required=True):
-        case Err(error):
-            return Err(error)
-        case Ok(value):
-            if value is None:
-                msg = f"{operation} success response missing {field}"
-                return _schema_err(msg, operation=operation)
-            return Ok(value)
+    parsed = _parse_id_field(raw, operation=operation, field=field, required=True)
+    if isinstance(parsed, Err):
+        return parsed
+    if parsed.ok_value is None:
+        msg = f"{operation} success response missing {field}"
+        return _schema_err(msg, operation=operation)
+    return Ok(parsed.ok_value)
 
 
 def parse_validate_result(doc: dict[str, Any]) -> Result[ValidateResult, FitsError]:
@@ -382,11 +381,10 @@ def parse_validate_result(doc: dict[str, Any]) -> Result[ValidateResult, FitsErr
         return _schema_err(msg, operation=operation)
 
     summary_raw = doc.get("summary")
-    match _require_dict(summary_raw, "summary", operation):
-        case Err(error):
-            return Err(error)
-        case Ok(summary_dict):
-            pass
+    summary_result = _require_dict(summary_raw, "summary", operation)
+    if isinstance(summary_result, Err):
+        return summary_result
+    summary_dict = summary_result.ok_value
 
     validation_issues: list[ValidationIssue] = []
     for item in issues_raw:
@@ -429,11 +427,10 @@ def parse_validate_result(doc: dict[str, Any]) -> Result[ValidateResult, FitsErr
         "warning_count",
         "error_count",
     ):
-        match _int_field(name):
-            case Err(error):
-                return Err(error)
-            case Ok(value):
-                fields[name] = value
+        int_result = _int_field(name)
+        if isinstance(int_result, Err):
+            return int_result
+        fields[name] = int_result.ok_value
 
     summary = ValidateSummary(
         total_validation_issues=fields["total_validation_issues"],
@@ -540,26 +537,24 @@ def parse_output_graph(doc: dict[str, Any]) -> Result[Graph, FitsError]:
         if not isinstance(item, dict):
             msg = "graph node must be an object"
             return _schema_err(msg, operation=operation)
-        match _parse_required_id(
+        node_id_result = _parse_required_id(
             item.get("id"),
             operation=operation,
             field="node.id",
-        ):
-            case Err(error):
-                return Err(error)
-            case Ok(node_id):
-                pass
+        )
+        if isinstance(node_id_result, Err):
+            return node_id_result
+        node_id = node_id_result.ok_value
         node_parent_id: Id | None = None
         if "parent_id" in item:
-            match _parse_id_field(
+            parent_result = _parse_id_field(
                 item.get("parent_id"),
                 operation=operation,
                 field="node.parent_id",
-            ):
-                case Err(error):
-                    return Err(error)
-                case Ok(parsed_parent):
-                    node_parent_id = parsed_parent
+            )
+            if isinstance(parent_result, Err):
+                return parent_result
+            node_parent_id = parent_result.ok_value
         nodes.append(GraphNode(id=node_id, parent_id=node_parent_id))
 
     edges: list[GraphEdge] = []
@@ -575,48 +570,44 @@ def parse_output_graph(doc: dict[str, Any]) -> Result[Graph, FitsError]:
         if not isinstance(link_type, str):
             msg = "graph edge missing link_type"
             return _schema_err(msg, operation=operation)
-        match _parse_required_id(
+        from_id_result = _parse_required_id(
             item.get("from_id"),
             operation=operation,
             field="edge.from_id",
-        ):
-            case Err(error):
-                return Err(error)
-            case Ok(from_id):
-                pass
-        match _parse_required_id(
+        )
+        if isinstance(from_id_result, Err):
+            return from_id_result
+        from_id = from_id_result.ok_value
+        to_id_result = _parse_required_id(
             item.get("to_id"),
             operation=operation,
             field="edge.to_id",
-        ):
-            case Err(error):
-                return Err(error)
-            case Ok(to_id):
-                pass
+        )
+        if isinstance(to_id_result, Err):
+            return to_id_result
+        to_id = to_id_result.ok_value
         edge_id: Id | None = None
         if "id" in item:
-            match _parse_id_field(
+            edge_id_result = _parse_id_field(
                 item.get("id"),
                 operation=operation,
                 field="edge.id",
                 required=False,
-            ):
-                case Err(error):
-                    return Err(error)
-                case Ok(parsed_edge_id):
-                    edge_id = parsed_edge_id
+            )
+            if isinstance(edge_id_result, Err):
+                return edge_id_result
+            edge_id = edge_id_result.ok_value
         edge_parent_id: Id | None = None
         if "parent_id" in item:
-            match _parse_id_field(
+            edge_parent_result = _parse_id_field(
                 item.get("parent_id"),
                 operation=operation,
                 field="edge.parent_id",
                 required=False,
-            ):
-                case Err(error):
-                    return Err(error)
-                case Ok(parsed_parent):
-                    edge_parent_id = parsed_parent
+            )
+            if isinstance(edge_parent_result, Err):
+                return edge_parent_result
+            edge_parent_id = edge_parent_result.ok_value
         edges.append(
             GraphEdge(
                 from_id=from_id,

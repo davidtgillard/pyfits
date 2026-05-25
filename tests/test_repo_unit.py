@@ -83,6 +83,33 @@ def test_repo_open_registry_snapshot(repo_dir: Path) -> None:
     repo.close()
 
 
+def test_repo_open_failure(monkeypatch: pytest.MonkeyPatch, repo_dir: Path) -> None:
+    err = FitsError("open failed")
+    monkeypatch.setattr(
+        "pyfits.repo._native.open_repo",
+        lambda *_args, **_kwargs: Err(err),
+    )
+    result = Repo.open(repo_dir)
+    assert isinstance(result, Err)
+    assert result.err_value is err
+
+
+def test_repo_void_methods_success(
+    monkeypatch: pytest.MonkeyPatch,
+    repo_dir: Path,
+) -> None:
+    repo = unwrap(Repo.open(repo_dir))
+
+    def ok(*_args: object, **_kwargs: object) -> Ok[dict[str, object]]:
+        return Ok({"ok": True})
+
+    monkeypatch.setattr("pyfits.repo._json.call_and_parse", ok)
+    assert isinstance(repo.init(), Ok)
+    assert isinstance(repo.register_link_type("l", "a", "b"), Ok)
+    assert isinstance(repo.remove(Id("REQ-1")), Ok)
+    repo.close()
+
+
 def test_register_node_type_passes_container_and_autonumber(
     monkeypatch: pytest.MonkeyPatch,
     repo_dir: Path,

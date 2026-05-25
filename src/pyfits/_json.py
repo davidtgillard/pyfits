@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 from pyfits import _native
 from pyfits._validate import validate_response
@@ -46,44 +46,39 @@ def call_and_parse(
         ``Ok(parsed)`` after schema validation, or ``Err(FitsError)`` on failure.
     """
     c_op = _c_operation(operation)
-    match _native.call_json(c_op, handle, dumps_request(request)):
-        case Err(error):
-            return Err(error)
-        case Ok((status, text)):
-            if not text:
-                match _native.last_error():
-                    case Ok(message):
-                        err = _error_from_status(status, message)
-                    case Err(error):
-                        return Err(error)
-                if err is not None:
-                    return Err(err)
-                return Ok({})
-            try:
-                parsed = json.loads(text)
-            except json.JSONDecodeError as exc:
-                msg = f"{operation} returned invalid JSON: {exc}"
-                return Err(FitsError(msg))
-            if not isinstance(parsed, dict):
-                msg = f"{operation} response must be a JSON object"
-                return Err(FitsError(msg))
-            match validate_response(operation, parsed):
-                case Err(error):
-                    return Err(error)
-                case Ok(_):
-                    pass
-            if status != 0:
-                doc_err = _error_from_error_document(parsed)
-                if doc_err is not None:
-                    return Err(doc_err)
-                match _native.last_error():
-                    case Ok(message):
-                        status_err = _error_from_status(status, message)
-                    case Err(error):
-                        return Err(error)
-                if status_err is not None:
-                    return Err(status_err)
-            doc_err = _error_from_error_document(parsed)
-            if doc_err is not None:
-                return Err(doc_err)
-            return Ok(parsed)
+    call_result = _native.call_json(c_op, handle, dumps_request(request))
+    if isinstance(call_result, Err):
+        return call_result
+    status, text = call_result.ok_value
+    if not text:
+        error_result = _native.last_error()
+        if isinstance(error_result, Err):
+            return error_result
+        err = _error_from_status(status, error_result.ok_value)
+        if err is not None:
+            return Err(err)
+        return Ok({})
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        msg = f"{operation} returned invalid JSON: {exc}"
+        return Err(FitsError(msg))
+    if not isinstance(parsed, dict):
+        msg = f"{operation} response must be a JSON object"
+        return Err(FitsError(msg))
+    validate_result = validate_response(operation, parsed)
+    if isinstance(validate_result, Err):
+        return validate_result
+    if status != 0:
+        doc_err = _error_from_error_document(parsed)
+        if doc_err is not None:
+            return Err(doc_err)
+        error_result = _native.last_error()
+        if isinstance(error_result, Err):
+            return error_result
+        status_err = _error_from_status(status, error_result.ok_value)
+        return Err(cast(FitsError, status_err))
+    doc_err = _error_from_error_document(parsed)
+    if doc_err is not None:
+        return Err(doc_err)
+    return Ok(parsed)

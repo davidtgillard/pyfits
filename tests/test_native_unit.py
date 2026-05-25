@@ -310,3 +310,13 @@ def test_version_string_uses_decode(monkeypatch: pytest.MonkeyPatch) -> None:
     result = _native.version_string()
     assert isinstance(result, Ok)
     assert result.ok_value == "1.2.3"
+
+
+def test_init_lib_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        _native,
+        "_load_library",
+        lambda: Err(FitsError("missing libfits")),
+    )
+    with pytest.raises(RuntimeError, match="missing libfits"):
+        _native._init_lib()

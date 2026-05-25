@@ -86,14 +86,13 @@ class Repo:
         snap: str | None = None
         if registry_snapshot is not None:
             snap = str(Path(registry_snapshot).resolve())
-        match _native.open_repo(
+        open_result = _native.open_repo(
             str(resolved).encode("utf-8"),
             registry_snapshot=snap.encode("utf-8") if snap else None,
-        ):
-            case Err(error):
-                return Err(error)
-            case Ok(handle):
-                return Ok(Repo(handle, resolved))
+        )
+        if isinstance(open_result, Err):
+            return open_result
+        return Ok(Repo(open_result.ok_value, resolved))
 
     def __enter__(self) -> Repo:
         """Enter the context manager and return this session.
@@ -155,11 +154,10 @@ class Repo:
                 "edit_gitignore": edit_gitignore,
             },
         )
-        match _json.call_and_parse("init", self._require_handle(), request):
-            case Err(error):
-                return Err(error)
-            case Ok(_):
-                return Ok(None)
+        init_result = _json.call_and_parse("init", self._require_handle(), request)
+        if isinstance(init_result, Err):
+            return init_result
+        return Ok(None)
 
     def register_node_type(
         self,
@@ -199,15 +197,14 @@ class Repo:
             request["extends"] = extends
         if container_node is not None:
             request["container_node"] = container_node
-        match _json.call_and_parse(
+        register_result = _json.call_and_parse(
             "register_node_type",
             self._require_handle(),
             request,
-        ):
-            case Err(error):
-                return Err(error)
-            case Ok(_):
-                return Ok(None)
+        )
+        if isinstance(register_result, Err):
+            return register_result
+        return Ok(None)
 
     def register_link_type(
         self,
@@ -240,15 +237,14 @@ class Repo:
             "out_type": out_type,
             "create_folder": create_folder,
         }
-        match _json.call_and_parse(
+        register_result = _json.call_and_parse(
             "register_link_type",
             self._require_handle(),
             request,
-        ):
-            case Err(error):
-                return Err(error)
-            case Ok(_):
-                return Ok(None)
+        )
+        if isinstance(register_result, Err):
+            return register_result
+        return Ok(None)
 
     def new_node(
         self,
@@ -345,11 +341,10 @@ class Repo:
         request = {
             "object_id": object_id.value,
         }
-        match _json.call_and_parse("remove", self._require_handle(), request):
-            case Err(error):
-                return Err(error)
-            case Ok(_):
-                return Ok(None)
+        remove_result = _json.call_and_parse("remove", self._require_handle(), request)
+        if isinstance(remove_result, Err):
+            return remove_result
+        return Ok(None)
 
     def rename_instance(
         self,

@@ -84,3 +84,42 @@ def test_schema_dict_uses_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(first, Ok)
     assert isinstance(second, Ok)
     mock_lib.FITS_init_request_schema.assert_called_once()
+
+
+def test_validator_uses_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_schema_cache()
+    mock_lib = MagicMock()
+    mock_lib.FITS_init_request_schema.return_value = b'{"type":"object"}'
+    monkeypatch.setattr(_native, "_LIB", mock_lib)
+    monkeypatch.setattr(_native, "load_library", lambda: Ok(mock_lib))
+    from pyfits._schemas import validator
+
+    first = validator(SchemaId.INIT_REQUEST)
+    second = validator(SchemaId.INIT_REQUEST)
+    assert isinstance(first, Ok)
+    assert isinstance(second, Ok)
+    mock_lib.FITS_init_request_schema.assert_called_once()
+
+
+def test_validator_schema_load_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_schema_cache()
+    mock_lib = MagicMock()
+    mock_lib.FITS_init_request_schema.return_value = None
+    monkeypatch.setattr(_native, "_LIB", mock_lib)
+    monkeypatch.setattr(_native, "load_library", lambda: Ok(mock_lib))
+    from pyfits._schemas import validator
+
+    result = validator(SchemaId.INIT_REQUEST)
+    assert isinstance(result, Err)
+
+
+def test_validate_document_schema_load_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clear_schema_cache()
+    mock_lib = MagicMock()
+    mock_lib.FITS_init_request_schema.return_value = None
+    monkeypatch.setattr(_native, "_LIB", mock_lib)
+    monkeypatch.setattr(_native, "load_library", lambda: Ok(mock_lib))
+    result = validate_document(SchemaId.INIT_REQUEST, {"protocol_version": 1})
+    assert isinstance(result, Err)

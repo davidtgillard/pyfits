@@ -33,18 +33,18 @@ def validate_response(operation: str, doc: dict[str, Any]) -> Result[None, FitsE
     else:
         schema_id = SUCCESS_SCHEMA_BY_OPERATION[operation]
 
-    match validate_document(schema_id, doc):
-        case Ok(_):
-            return Ok(None)
-        case Err(error):
-            if isinstance(error, jsonschema.ValidationError):
-                msg = f"{operation} response failed schema {schema_id}: {error.message}"
-                return Err(
-                    FitsSchemaError(
-                        msg,
-                        operation=operation,
-                        schema_id=schema_id,
-                        validation_message=error.message,
-                    )
-                )
-            return Err(error)
+    validate_result = validate_document(schema_id, doc)
+    if isinstance(validate_result, Ok):
+        return Ok(None)
+    error = validate_result.err_value
+    if isinstance(error, jsonschema.ValidationError):
+        msg = f"{operation} response failed schema {schema_id}: {error.message}"
+        return Err(
+            FitsSchemaError(
+                msg,
+                operation=operation,
+                schema_id=schema_id,
+                validation_message=error.message,
+            )
+        )
+    return Err(error)

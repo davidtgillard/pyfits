@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import FrozenInstanceError
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 from pyrsistent import pvector
@@ -341,6 +342,13 @@ def test_id_join() -> None:
     assert joined == Id("REQ-1/section-1")
 
 
+def test_id_join_empty_parent() -> None:
+    parent = Mock()
+    parent.value = ""
+    joined = Id.join(parent, TargetId("section-1"))
+    assert joined == Id("section-1")
+
+
 @pytest.mark.parametrize(
     "value",
     [
@@ -598,6 +606,73 @@ def test_parse_output_graph_invalid_optional_ids() -> None:
     }
     result = parse_output_graph({"ok": True, "graph": graph_doc})
     assert isinstance(result, Err)
+
+
+def test_parse_output_graph_optional_null_edge_ids() -> None:
+    graph_doc = {
+        "nodes": [],
+        "edges": [
+            {
+                "from_id": "REQ-1",
+                "to_id": "REQ-2",
+                "kind": "registered_link",
+                "link_type": "depends",
+                "id": None,
+                "parent_id": None,
+            }
+        ],
+    }
+    result = parse_output_graph({"ok": True, "graph": graph_doc})
+    assert isinstance(result, Ok)
+    assert result.ok_value.edges[0].id is None
+    assert result.ok_value.edges[0].parent_id is None
+
+
+def test_parse_output_graph_optional_id_type_errors() -> None:
+    graph_doc = {
+        "nodes": [],
+        "edges": [
+            {
+                "from_id": "REQ-1",
+                "to_id": "REQ-2",
+                "kind": "registered_link",
+                "link_type": "depends",
+                "id": 123,
+            }
+        ],
+    }
+    result = parse_output_graph({"ok": True, "graph": graph_doc})
+    assert isinstance(result, Err)
+    assert "edge.id must be a string" in str(result.err_value)
+
+    graph_doc["edges"][0]["id"] = "depends-1"
+    graph_doc["edges"][0]["parent_id"] = 456
+    result = parse_output_graph({"ok": True, "graph": graph_doc})
+    assert isinstance(result, Err)
+    assert "edge.parent_id must be a string" in str(result.err_value)
+
+
+def test_parse_required_id_none_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pyfits.models import _parse_required_id
+
+    monkeypatch.setattr(
+        "pyfits.models._parse_id_field",
+        lambda *_args, **_kwargs: Ok(None),
+    )
+    result = _parse_required_id(None, operation="new_node", field="node_id")
+    assert isinstance(result, Err)
+    assert "missing node_id" in str(result.err_value)
+
+
+def test_format_output_graph_json_not_serializable() -> None:
+    class BadJson:
+        pass
+
+    result = format_output_graph_json(
+        {"ok": True, "graph": {"nodes": [], "bad": BadJson()}},
+    )
+    assert isinstance(result, Err)
+    assert result.err_value.code == "invalid_json"
 
 
 def test_id_and_target_id_parse_helpers() -> None:
