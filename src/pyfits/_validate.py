@@ -6,8 +6,8 @@ from typing import Any
 
 import jsonschema
 
-from pyfits._errors import FitsError, FitsSchemaError
 from pyfits._schemas import SUCCESS_SCHEMA_BY_OPERATION, validate_document
+from pyfits.errors import FitsError, FitsSchemaError
 from pyfits.result import Err, Ok, Result
 
 

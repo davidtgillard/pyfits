@@ -9,7 +9,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from pyfits._errors import FitsError, _error_from_status, _lib_not_found_error
+from pyfits.errors import FitsError, _error_from_status, _lib_not_found_error
 from pyfits.result import Err, Ok, Result
 
 if TYPE_CHECKING:

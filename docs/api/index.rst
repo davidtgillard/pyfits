@@ -10,7 +10,7 @@ Classes and types
 
 * :doc:`repo` — :class:`~pyfits.repo.Repo` session API
 * :doc:`models` — graph and validation models (:class:`~pyfits.models.Id`, :class:`~pyfits.models.ValidateResult`, …)
-* :doc:`exceptions` — :class:`~pyfits._errors.FitsError`, :class:`~pyfits._errors.FitsSchemaError`, :class:`~pyfits._errors.FitsStatus`
+* :doc:`exceptions` — :class:`~pyfits.errors.FitsError`, :class:`~pyfits.errors.FitsSchemaError`, :class:`~pyfits.errors.FitsStatus`
 * :doc:`schemas` — JSON Schema access helpers
 
 Version and library info

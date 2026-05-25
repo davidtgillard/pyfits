@@ -223,7 +223,7 @@ def test_repo_with_registry_snapshot(repo_dir: Path) -> None:
 
 def test_repo_open_failure(monkeypatch: pytest.MonkeyPatch, repo_dir: Path) -> None:
     from pyfits import _native
-    from pyfits._errors import FitsError
+    from pyfits.errors import FitsError
 
     monkeypatch.setattr(
         _native,

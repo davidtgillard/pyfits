@@ -30,8 +30,8 @@ Public exports:
 
 from importlib.metadata import PackageNotFoundError, version
 
-from pyfits._errors import FitsError, FitsSchemaError, FitsStatus
 from pyfits._version_abi import Version, get_version
+from pyfits.errors import FitsError, FitsSchemaError, FitsStatus
 from pyfits.models import (
     Graph,
     GraphEdge,

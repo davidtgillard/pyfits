@@ -6,8 +6,8 @@ import json
 from typing import Any
 
 from pyfits import _native
-from pyfits._errors import FitsError, _error_from_error_document, _error_from_status
 from pyfits._validate import validate_response
+from pyfits.errors import FitsError, _error_from_error_document, _error_from_status
 from pyfits.result import Err, Ok, Result
 
 

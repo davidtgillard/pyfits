@@ -89,6 +89,7 @@ parametrize-names-type = "csv"
 "tests/**/*.py" = ["D", "DOC", "S101"]
 # Internal FFI/helpers: public API is documented on Repo and package exports.
 "src/pyfits/_*.py" = ["DOC"]
+"src/pyfits/errors.py" = ["DOC"]
 "src/pyfits/models.py" = ["D105", "DOC"]
 "src/pyfits/repo.py" = ["D105", "DOC"]
 

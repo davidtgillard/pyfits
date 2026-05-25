@@ -30,7 +30,7 @@ match Repo.open(path):
 
 ## FitsError
 
-Carried in `Err(...)` for operational failures. When libfits returns a structured error document, `code` is set from the JSON `error.code` field. When a negative C status is returned without JSON, `status` may be set to a {py:class}`FitsStatus <pyfits._errors.FitsStatus>` value.
+Carried in `Err(...)` for operational failures. When libfits returns a structured error document, `code` is set from the JSON `error.code` field. When a negative C status is returned without JSON, `status` may be set to a {py:class}`FitsStatus <pyfits.errors.FitsStatus>` value.
 
 ## FitsSchemaError
 

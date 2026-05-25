@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from pyfits import _json, _native
-from pyfits._errors import FitsError
+from pyfits.errors import FitsError
 from pyfits.models import (
     Graph,
     Id,

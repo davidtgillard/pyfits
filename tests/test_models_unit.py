@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from pyrsistent import pvector
 
-from pyfits._errors import FitsSchemaError
+from pyfits.errors import FitsSchemaError
 from pyfits.models import (
     Graph,
     GraphEdge,

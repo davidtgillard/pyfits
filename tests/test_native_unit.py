@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pyfits import _native
-from pyfits._errors import FitsError
+from pyfits.errors import FitsError
 from pyfits.result import Err, Ok
 
 

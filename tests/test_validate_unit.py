@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from pyfits._errors import FitsSchemaError
 from pyfits._validate import validate_response
+from pyfits.errors import FitsSchemaError
 from pyfits.result import Err, Ok
 
 

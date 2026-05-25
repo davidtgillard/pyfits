@@ -1,7 +1,7 @@
 Exceptions
 ==========
 
-.. autoclass:: pyfits._errors.FitsStatus
+.. autoclass:: pyfits.errors.FitsStatus
    :show-inheritance:
    :exclude-members: OK, ERR_INVALID_ARGUMENT, ERR_REPO_NOT_FOUND, ERR_REGISTRY,
                      ERR_LINKS_INVALID, ERR_SNAPSHOT_MISMATCH,
@@ -9,10 +9,10 @@ Exceptions
                      ERR_OUT_OF_MEMORY, ERR_IO, ERR_NOT_IMPLEMENTED, ERR_INTERNAL,
                      ERR_SUBGRAPH_INVALID, ERR_UNKNOWN_NESTED_TYPE
 
-.. autoclass:: pyfits._errors.FitsError
+.. autoclass:: pyfits.errors.FitsError
    :members:
    :show-inheritance:
 
-.. autoclass:: pyfits._errors.FitsSchemaError
+.. autoclass:: pyfits.errors.FitsSchemaError
    :members:
    :show-inheritance:

@@ -23,7 +23,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.validators import validate
 
 from pyfits import _native
-from pyfits._errors import FitsError, FitsSchemaError
+from pyfits.errors import FitsError, FitsSchemaError
 from pyfits.result import Err, Ok, Result
 
 _SCHEMA_CACHE: dict[str, dict[str, Any]] = {}

@@ -7,12 +7,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from pyfits import _native
-from pyfits._errors import FitsError, FitsSchemaError
 from pyfits._schemas import (
     clear_schema_cache,
     schema_dict,
     validate_document,
 )
+from pyfits.errors import FitsError, FitsSchemaError
 from pyfits.result import Err, Ok
 
 

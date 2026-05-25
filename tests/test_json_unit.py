@@ -6,8 +6,8 @@ import ctypes
 
 import pytest
 
-from pyfits._errors import FitsError
 from pyfits._json import _c_operation, call_and_parse, dumps_request
+from pyfits.errors import FitsError
 from pyfits.result import Err, Ok
 
 
@@ -149,7 +149,7 @@ def test_call_and_parse_last_error_load_failure(
 def test_call_and_parse_validate_response_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from pyfits._errors import FitsSchemaError
+    from pyfits.errors import FitsSchemaError
 
     monkeypatch.setattr(
         "pyfits._json._native.call_json",

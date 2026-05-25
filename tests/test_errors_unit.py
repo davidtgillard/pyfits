@@ -1,4 +1,4 @@
-"""Unit tests for pyfits._errors."""
+"""Unit tests for pyfits.errors."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from pyfits._errors import (
+from pyfits.errors import (
     FitsSchemaError,
     FitsStatus,
     _error_from_error_document,

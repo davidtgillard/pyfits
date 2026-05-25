@@ -11,7 +11,7 @@ from typing import Any, Literal
 from pyrsistent import pvector
 from pyrsistent.typing import PVector
 
-from pyfits._errors import FitsError, FitsSchemaError
+from pyfits.errors import FitsError, FitsSchemaError
 from pyfits.result import Err, Ok, Result
 
 _OBJECT_TYPE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
