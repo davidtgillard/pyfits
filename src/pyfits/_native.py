@@ -9,7 +9,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from pyfits._errors import FitsError, error_from_status, lib_not_found_error
+from pyfits._errors import FitsError, _error_from_status, _lib_not_found_error
 from pyfits.result import Err, Ok, Result
 
 if TYPE_CHECKING:
@@ -85,7 +85,7 @@ def _load_library() -> Result[CDLL, FitsError]:
             _configure_lib(lib)
             return Ok(lib)
     msg = "libfits shared library not found; set PYFITS_LIB_PATH or build ../fits"
-    return Err(lib_not_found_error(msg))
+    return Err(_lib_not_found_error(msg))
 
 
 def load_library() -> Result[CDLL, FitsError]:
@@ -185,7 +185,7 @@ def lib_path() -> Result[Path, FitsError]:
     for candidate in _repo_root_candidates():
         if candidate.is_file():
             return Ok(candidate)
-    return Err(lib_not_found_error("libfits shared library not found"))
+    return Err(_lib_not_found_error("libfits shared library not found"))
 
 
 def _decode_c_string(raw: bytes | int | None) -> str:
@@ -292,7 +292,7 @@ def call_json(
     if not out:
         match last_error():
             case Ok(message):
-                err = error_from_status(status, message)
+                err = _error_from_status(status, message)
             case Err(error):
                 return Err(error)
         if err is not None:

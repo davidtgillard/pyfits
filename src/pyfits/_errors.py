@@ -10,7 +10,7 @@ class FitsStatus(IntEnum):
     """Stable libfits status codes from fits_core.h.
 
     Negative values are stable across releases and match ``FITS_ERR_*`` macros.
-    Use :func:`status_from_int` to map raw C return values.
+    Negative values map directly from raw C return codes.
 
     Attributes:
         OK: Operation succeeded (``FITS_OK``).
@@ -106,43 +106,21 @@ class FitsSchemaError(FitsError):
         self.validation_message = validation_message
 
 
-def lib_not_found_error(message: str) -> FitsError:
-    """Build a :class:`FitsError` for a missing libfits shared library.
-
-    Args:
-        message: Human-readable error description.
-
-    Returns:
-        Error payload with ``code="lib_not_found"``.
-    """
+def _lib_not_found_error(message: str) -> FitsError:
+    """Build a :class:`FitsError` for a missing libfits shared library."""
     return FitsError(message, code="lib_not_found")
 
 
-def status_from_int(value: int) -> FitsStatus | None:
-    """Map a C status integer to :class:`FitsStatus`.
-
-    Args:
-        value: Raw status code returned by libfits.
-
-    Returns:
-        Matching :class:`FitsStatus` member, or ``None`` when ``value`` is not
-        a known status code.
-    """
+def _status_from_int(value: int) -> FitsStatus | None:
+    """Map a C status integer to :class:`FitsStatus`, or ``None`` if unknown."""
     try:
         return FitsStatus(value)
     except ValueError:
         return None
 
 
-def error_from_error_document(doc: dict[str, Any]) -> FitsError | None:
-    """Return an error for a schema-validated ``ok: false`` response.
-
-    Args:
-        doc: Parsed libfits JSON response object.
-
-    Returns:
-        :class:`FitsError` when ``doc`` has ``ok: false``; otherwise ``None``.
-    """
+def _error_from_error_document(doc: dict[str, Any]) -> FitsError | None:
+    """Return an error for a schema-validated ``ok: false`` response."""
     if doc.get("ok") is not False:
         return None
     err = doc.get("error")
@@ -157,19 +135,10 @@ def error_from_error_document(doc: dict[str, Any]) -> FitsError | None:
     return FitsError(message, code=code)
 
 
-def error_from_status(status: int, last_error: str) -> FitsError | None:
-    """Return an error for a negative C status without a JSON body.
-
-    Args:
-        status: Raw status code returned by libfits.
-        last_error: Thread-local diagnostic string from :func:`last_error`.
-
-    Returns:
-        :class:`FitsError` when ``status`` is not :attr:`FitsStatus.OK`; otherwise
-        ``None``.
-    """
+def _error_from_status(status: int, last_error: str) -> FitsError | None:
+    """Return an error for a negative C status without a JSON body."""
     if status == FitsStatus.OK:
         return None
-    st = status_from_int(status)
+    st = _status_from_int(status)
     msg = last_error if last_error else f"libfits call failed with status {status}"
     return FitsError(msg, status=st)

@@ -9,10 +9,10 @@ import pytest
 from pyfits._errors import (
     FitsSchemaError,
     FitsStatus,
-    error_from_error_document,
-    error_from_status,
-    lib_not_found_error,
-    status_from_int,
+    _error_from_error_document,
+    _error_from_status,
+    _lib_not_found_error,
+    _status_from_int,
 )
 
 
@@ -27,7 +27,7 @@ from pyfits._errors import (
     ],
 )
 def test_status_from_int(value: int, expected: FitsStatus | None) -> None:
-    assert status_from_int(value) == expected
+    assert _status_from_int(value) == expected
 
 
 @pytest.mark.parametrize(
@@ -37,7 +37,7 @@ def test_status_from_int(value: int, expected: FitsStatus | None) -> None:
     ],
 )
 def test_error_from_error_document_ok(doc: dict[str, Any]) -> None:
-    assert error_from_error_document(doc) is None
+    assert _error_from_error_document(doc) is None
 
 
 @pytest.mark.parametrize(
@@ -62,13 +62,13 @@ def test_error_from_error_document_returns_error(
     doc: dict[str, Any],
     match: str,
 ) -> None:
-    err = error_from_error_document(doc)
+    err = _error_from_error_document(doc)
     assert err is not None
     assert match in str(err)
 
 
 def test_error_from_status_ok() -> None:
-    assert error_from_status(0, "") is None
+    assert _error_from_status(0, "") is None
 
 
 @pytest.mark.parametrize(
@@ -83,14 +83,14 @@ def test_error_from_status_returns_error(
     last_error: str,
     match: str,
 ) -> None:
-    err = error_from_status(status, last_error)
+    err = _error_from_status(status, last_error)
     assert err is not None
     assert match in str(err)
     assert err.status == FitsStatus.ERR_INVALID_ARGUMENT
 
 
 def test_lib_not_found_error() -> None:
-    err = lib_not_found_error("missing")
+    err = _lib_not_found_error("missing")
     assert err.code == "lib_not_found"
     assert str(err) == "missing"
 

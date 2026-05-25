@@ -6,7 +6,7 @@ import json
 from typing import Any
 
 from pyfits import _native
-from pyfits._errors import FitsError, error_from_error_document, error_from_status
+from pyfits._errors import FitsError, _error_from_error_document, _error_from_status
 from pyfits._validate import validate_response
 from pyfits.result import Err, Ok, Result
 
@@ -53,7 +53,7 @@ def call_and_parse(
             if not text:
                 match _native.last_error():
                     case Ok(message):
-                        err = error_from_status(status, message)
+                        err = _error_from_status(status, message)
                     case Err(error):
                         return Err(error)
                 if err is not None:
@@ -73,17 +73,17 @@ def call_and_parse(
                 case Ok(_):
                     pass
             if status != 0:
-                doc_err = error_from_error_document(parsed)
+                doc_err = _error_from_error_document(parsed)
                 if doc_err is not None:
                     return Err(doc_err)
                 match _native.last_error():
                     case Ok(message):
-                        status_err = error_from_status(status, message)
+                        status_err = _error_from_status(status, message)
                     case Err(error):
                         return Err(error)
                 if status_err is not None:
                     return Err(status_err)
-            doc_err = error_from_error_document(parsed)
+            doc_err = _error_from_error_document(parsed)
             if doc_err is not None:
                 return Err(doc_err)
             return Ok(parsed)

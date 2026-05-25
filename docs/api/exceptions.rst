@@ -1,9 +1,6 @@
 Exceptions
 ==========
 
-.. autofunction:: pyfits._errors.status_from_int
-   :no-index:
-
 .. autoclass:: pyfits._errors.FitsStatus
    :show-inheritance:
    :exclude-members: OK, ERR_INVALID_ARGUMENT, ERR_REPO_NOT_FOUND, ERR_REGISTRY,
