@@ -110,6 +110,61 @@ def test_repo_void_methods_success(
     repo.close()
 
 
+def test_init_omits_custom_roots_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+    repo_dir: Path,
+) -> None:
+    repo = unwrap(Repo.open(repo_dir))
+    captured: list[dict[str, object]] = []
+
+    def capture(
+        operation: str,
+        _handle: object,
+        request: dict[str, object] | None,
+    ) -> Ok[dict[str, object]]:
+        captured.append({"operation": operation, "request": request})
+        return Ok({"ok": True})
+
+    monkeypatch.setattr("pyfits.repo._json.call_and_parse", capture)
+    unwrap(repo.init())
+    req = captured[0]["request"]
+    assert isinstance(req, dict)
+    assert "nodes_root" not in req
+    assert "links_root" not in req
+    repo.close()
+
+
+def test_init_passes_custom_roots(
+    monkeypatch: pytest.MonkeyPatch,
+    repo_dir: Path,
+) -> None:
+    repo = unwrap(Repo.open(repo_dir))
+    captured: list[dict[str, object]] = []
+
+    def capture(
+        operation: str,
+        _handle: object,
+        request: dict[str, object] | None,
+    ) -> Ok[dict[str, object]]:
+        captured.append({"operation": operation, "request": request})
+        return Ok({"ok": True})
+
+    monkeypatch.setattr("pyfits.repo._json.call_and_parse", capture)
+    unwrap(
+        repo.init(
+            nodes_root="my/nodes",
+            links_root=Path("my/links"),
+        )
+    )
+    req = captured[0]["request"]
+    assert isinstance(req, dict)
+    assert req["nodes_root"] == "my/nodes"
+    assert req["links_root"] == str(Path("my/links"))
+    assert req["init_git"] is False
+    assert req["edit_gitignore"] is False
+    repo.close()
+
+
 def test_register_node_type_passes_container_and_autonumber(
     monkeypatch: pytest.MonkeyPatch,
     repo_dir: Path,

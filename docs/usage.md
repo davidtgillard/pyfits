@@ -42,6 +42,19 @@ match repo.new_node(
         assert nested_id == Id("REQ-1/overview")
 ```
 
+### Custom graph roots
+
+By default, libfits stores nodes under `nodes/` and links under `links/`. Override either at init time; the values are persisted to `.fits/fits_config.toml` under `[paths]`:
+
+```python
+match Repo.open(Path("my-product")):
+    case Ok(repo):
+        with repo:
+            repo.init(nodes_root="a/b/my_nodes", links_root="a/b/my_links")
+```
+
+Both paths are repo-relative and must not live under `.fits/`; libfits enforces this. Changing roots after data exists does not move files.
+
 You can optionally open against a registry snapshot:
 
 ```python

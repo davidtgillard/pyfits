@@ -53,6 +53,41 @@ def test_init_and_validate(initialized_repo: Repo) -> None:
     initialized_repo.close()
 
 
+def test_init_with_custom_roots(repo_dir: Path) -> None:
+    repo = unwrap(Repo.open(repo_dir))
+    with repo:
+        unwrap(
+            repo.init(
+                nodes_root="a/b/my_nodes",
+                links_root=Path("a/b/my_links"),
+            )
+        )
+        unwrap(repo.register_node_type("req", abstract=True))
+        unwrap(
+            repo.register_node_type(
+                "REQ",
+                extends="req",
+                create_folder=True,
+            )
+        )
+        unwrap(repo.register_link_type("depends", "req", "req"))
+        in_id = unwrap(repo.new_node(ObjectTypeName("REQ")))
+        out_id = unwrap(repo.new_node(ObjectTypeName("REQ")))
+        unwrap(repo.new_link("depends", in_id, out_id))
+
+    config_text = (repo_dir / ".fits" / "fits_config.toml").read_text(encoding="utf-8")
+    assert "[paths]" in config_text
+    assert 'nodes_root = "a/b/my_nodes"' in config_text
+    assert 'links_root = "a/b/my_links"' in config_text
+
+    nodes_root = repo_dir / "a" / "b" / "my_nodes"
+    assert (nodes_root / "req" / "REQ" / "REQ-1").is_dir()
+
+    links_index = repo_dir / "a" / "b" / "my_links" / "links.jsonc"
+    assert links_index.is_file()
+    assert "depends-1" in links_index.read_text(encoding="utf-8")
+
+
 def test_init_twice_returns_err(repo_dir: Path) -> None:
     repo = unwrap(Repo.open(repo_dir))
     with repo:

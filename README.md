@@ -61,6 +61,12 @@ match Repo.open(Path("my-product")):
 
 Operational failures return `Result[..., FitsError]` (`Ok` / `Err`). Check the variant instead of catching `FitsError` for libfits operations.
 
+Override the default `nodes/` and `links/` graph roots at init time; libfits writes the values to `.fits/fits_config.toml` under `[paths]`:
+
+```python
+repo.init(nodes_root="a/b/my_nodes", links_root="a/b/my_links")
+```
+
 ## Response validation
 
 Every libfits JSON response is validated before returning to callers:

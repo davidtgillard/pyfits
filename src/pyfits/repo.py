@@ -133,12 +133,22 @@ class Repo:
         *,
         init_git: bool = False,
         edit_gitignore: bool = False,
+        nodes_root: str | Path | None = None,
+        links_root: str | Path | None = None,
     ) -> Result[None, FitsError]:
         """Initialize an empty directory as a fits repository.
 
         Args:
             init_git: When ``True``, initialize a git repository in the root.
             edit_gitignore: When ``True``, create or update ``.gitignore``.
+            nodes_root: Optional repo-relative path for the node graph root,
+                written to ``.fits/fits_config.toml`` under ``[paths]``. Omit
+                (default) to use libfits' default ``nodes``. Must not live
+                under ``.fits/``; libfits enforces this.
+            links_root: Optional repo-relative path for the link graph root,
+                written to ``.fits/fits_config.toml`` under ``[paths]``. Omit
+                (default) to use libfits' default ``links``. Must not live
+                under ``.fits/``; libfits enforces this.
 
         Returns:
             ``Ok(None)`` on success, or ``Err(FitsError)`` when libfits reports
@@ -147,13 +157,15 @@ class Repo:
         Raises:
             RuntimeError: When the session is already closed.
         """
-        request = _with_protocol_version(
-            "init",
-            {
-                "init_git": init_git,
-                "edit_gitignore": edit_gitignore,
-            },
-        )
+        body: dict[str, Any] = {
+            "init_git": init_git,
+            "edit_gitignore": edit_gitignore,
+        }
+        if nodes_root is not None:
+            body["nodes_root"] = str(nodes_root)
+        if links_root is not None:
+            body["links_root"] = str(links_root)
+        request = _with_protocol_version("init", body)
         init_result = _json.call_and_parse("init", self._require_handle(), request)
         if isinstance(init_result, Err):
             return init_result
