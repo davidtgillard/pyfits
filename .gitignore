@@ -23,8 +23,9 @@ build/
 
 humans-only/
 
-# Bundled native library (copy via scripts/copy_libfits.sh)
+# Bundled native library (via scripts/fetch_libfits.py)
 src/pyfits/_lib/*.so
+src/pyfits/_lib/*.so.stamp
 src/pyfits/_lib/*.dll
 
 # MkDocs build output

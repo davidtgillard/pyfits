@@ -21,27 +21,6 @@ jobs:
       - name: Checkout pyfits
         uses: actions/checkout@v4
 
-      - name: Read libfits ref
-        id: libfits
-        run: echo "ref=$(grep '^libfits-ref=' .fits-lib-version | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout libfits
-        uses: actions/checkout@v4
-        with:
-          repository: davidtgillard/fits
-          path: fits
-          ref: ${{ steps.libfits.outputs.ref }}
-
-      - name: Install Zig
-        uses: mlugg/setup-zig@v2
-
-      - name: Build and bundle libfits
-        run: |
-          cd fits
-          zig build -Doptimize=ReleaseSafe
-          mkdir -p ../src/pyfits/_lib
-          cp zig-out/lib/libfits.so ../src/pyfits/_lib/
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -49,6 +28,9 @@ jobs:
 
       - name: Set up Python
         run: uv python install
+
+      - name: Fetch libfits from GitHub release
+        run: python scripts/fetch_libfits.py
 
       - name: Install documentation dependencies
         run: uv sync --group docs

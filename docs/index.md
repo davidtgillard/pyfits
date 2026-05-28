@@ -32,7 +32,7 @@ Operational methods return `Result[..., FitsError]`. Check `Ok` / `Err` instead 
 
 ## Guides
 
-- [Getting started](getting-started.md) — install pyfits and build libfits
+- [Getting started](getting-started.md) — install pyfits and fetch libfits
 - [Usage](usage.md) — repository workflow and response validation
 - [Errors](errors.md) — `Result` and error payload types
 - [Threading](threading.md) — session handle rules

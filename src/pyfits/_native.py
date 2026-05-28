@@ -64,8 +64,6 @@ def _repo_root_candidates() -> list[Path]:
     else:
         candidates.append(Path(__file__).resolve().parent / "_lib" / "libfits.so")
 
-    pyfits_root = Path(__file__).resolve().parents[2]
-    candidates.append(pyfits_root.parent / "fits" / "zig-out" / "lib" / "libfits.so")
     return candidates
 
 
@@ -84,7 +82,10 @@ def _load_library() -> Result[CDLL, FitsError]:
                 return Err(FitsError(str(exc), code="lib_load_failed"))
             _configure_lib(lib)
             return Ok(lib)
-    msg = "libfits shared library not found; set PYFITS_LIB_PATH or build ../fits"
+    msg = (
+        "libfits shared library not found; run "
+        "scripts/fetch_libfits.py or set PYFITS_LIB_PATH"
+    )
     return Err(_lib_not_found_error(msg))
 
 

@@ -18,19 +18,16 @@ uv run sphinx-build -b html -W -n docs docs/_build/html
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) for dependency and environment management
-- A built `libfits.so` (bundled in wheels after `scripts/copy_libfits.sh`, or from a sibling `fits` checkout)
+- **Linux x86_64** (including WSL2): `libfits.so` is downloaded from the [libfits `dev` release](https://github.com/davidtgillard/fits/releases) (see `[tool.pyfits.libfits]` in `pyproject.toml`)
 
 ## Development setup
 
-Build libfits and copy the shared library into the package:
-
 ```bash
-# From pyfits repo root; expects ../fits or set LIBFITS_SRC
-./scripts/copy_libfits.sh
 uv sync --all-groups
+uv run python scripts/fetch_libfits.py   # optional; pytest fetches automatically
 ```
 
-Or point at an existing build:
+Or point at an existing shared library:
 
 ```bash
 export PYFITS_LIB_PATH=/path/to/libfits.so
@@ -113,8 +110,8 @@ uv run ruff check . && uv run ruff format . && uv run basedpyright && uv run myp
 ## libfits coupling
 
 - C ABI version is read from the loaded library (`pyfits.get_version()`).
-- Pin the libfits git ref in [`.fits-lib-version`](.fits-lib-version) for CI.
-- CI checks out `davidtgillard/fits` and builds before tests.
+- Pin the libfits GitHub release in [`pyproject.toml`](pyproject.toml) (`[tool.pyfits.libfits]`); sha256 is verified via `manifest.json` on each fetch.
+- [`.fits-lib-version`](.fits-lib-version) documents the upstream git ref for cross-checking `manifest.json`’s `git_commit`.
 
 ## License
 

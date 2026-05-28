@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+
+_ROOT = Path(__file__).resolve().parents[1]
+_FETCH_SCRIPT = _ROOT / "scripts" / "fetch_libfits.py"
+subprocess.run(
+    [sys.executable, str(_FETCH_SCRIPT)],
+    cwd=_ROOT,
+    check=True,
+)
+
 from support import unwrap
 
 from pyfits import Repo

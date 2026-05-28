@@ -3,46 +3,77 @@ name: Wheel
 on:
   workflow_dispatch:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 jobs:
   build:
+    name: Build wheels (Linux x86_64)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout pyfits
         uses: actions/checkout@v4
 
-      - name: Read libfits ref
-        id: libfits
-        run: echo "ref=$(grep '^libfits-ref=' .fits-lib-version | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout libfits
-        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          repository: davidtgillard/fits
-          path: fits
-          ref: ${{ steps.libfits.outputs.ref }}
+          python-version: "3.12"
 
-      - name: Install Zig
-        uses: mlugg/setup-zig@v2
-
-      - name: Build libfits and bundle
+      - name: Install cibuildwheel
         run: |
-          cd fits
-          zig build -Doptimize=ReleaseSafe
-          mkdir -p ../src/pyfits/_lib
-          cp zig-out/lib/libfits.so ../src/pyfits/_lib/
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Build wheelhouse
+        env:
+          CIBW_PLATFORM: linux
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_BUILD_VERBOSITY: "1"
+        run: python -m cibuildwheel --output-dir wheelhouse
 
-      - name: Build wheel
-        run: |
-          uv build
-          ls -la dist/
-
-      - name: Upload wheel
+      - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pyfits-wheel
-          path: dist/*.whl
+          name: pyfits-wheelhouse
+          path: wheelhouse/*.whl
+
+  publish-dev-release:
+    name: Publish dev release
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: pyfits-wheelhouse
+          path: wheelhouse
+
+      - name: Ensure dev release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view dev --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+          gh release create dev \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Development wheels" \
+            --notes "Rolling development wheels for pyfits." \
+            --prerelease
+
+      - name: Remove existing dev assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/dev" --jq '.id')"
+          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets" --jq '.[].id' | while read -r asset_id; do
+            [ -n "$asset_id" ] || continue
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id"
+          done
+
+      - name: Upload fresh dev wheels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload dev wheelhouse/*.whl --repo "$GITHUB_REPOSITORY"
