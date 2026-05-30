@@ -38,11 +38,29 @@ Subclass of `FitsError` used when a response fails JSON Schema validation or pyf
 
 See the [Exceptions API](api/exceptions) reference for full details.
 
-## Nested subgraph status codes
+## Duplicate registration
 
-libfits 0.4 adds stable negative statuses for nested subgraph operations:
+libfits 0.4.1 adds explicit duplicate errors. `register_node_type` and
+`register_link_type` are **not idempotent**: repeating the same registration
+returns `Err(FitsError)` with a structured JSON error body.
+
+| JSON `error.code` | When |
+|-------------------|------|
+| `DuplicateNodeType` | Re-registering a node type |
+| `DuplicateLinkType` | Re-registering a link type |
+| `DuplicateInstanceId` | Duplicate `target_id` at create or rename |
+
+These map to C status `FitsStatus.ERR_ALREADY_EXISTS` (`-14`). This is distinct
+from `AlreadyInitialized` / `FitsStatus.ERR_ALREADY_INITIALIZED` (`-7`), which
+`init` returns when repository scaffold files already exist.
+
+## libfits 0.4 status codes
+
+libfits 0.4 adds stable negative statuses for nested subgraph and duplicate
+operations:
 
 | Status | Value | Meaning |
 |--------|-------|---------|
 | `FitsStatus.ERR_SUBGRAPH_INVALID` | -12 | Nested subgraph index or layout is invalid |
 | `FitsStatus.ERR_UNKNOWN_NESTED_TYPE` | -13 | Nested type not registered for the container |
+| `FitsStatus.ERR_ALREADY_EXISTS` | -14 | Duplicate node type, link type, or instance id |

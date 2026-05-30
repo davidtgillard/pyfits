@@ -168,6 +168,33 @@ def test_output_graph(initialized_repo: Repo) -> None:
     initialized_repo.close()
 
 
+def test_register_node_type_duplicate(initialized_repo: Repo) -> None:
+    result = initialized_repo.register_node_type("REQ", extends="req")
+    assert isinstance(result, Err)
+    assert result.err_value.code == "DuplicateNodeType"
+    initialized_repo.close()
+
+
+def test_output_graph_includes_registry_only_nodes(repo_dir: Path) -> None:
+    """Nodes without on-disk folders appear in output_graph (libfits ec4f445)."""
+    repo = unwrap(Repo.open(repo_dir))
+    with repo:
+        unwrap(repo.init())
+        unwrap(repo.register_node_type("req", abstract=True))
+        unwrap(repo.register_node_type("REQ", extends="req"))
+        unwrap(repo.register_node_type("BUG", extends="req"))
+        unwrap(repo.register_link_type("refs", "req", "req"))
+        unwrap(repo.new_node(ObjectTypeName("REQ")))
+        unwrap(repo.new_node(ObjectTypeName("BUG")))
+        req_id = Id("REQ-1")
+        bug_id = Id("BUG-1")
+        unwrap(repo.new_link("refs", req_id, bug_id))
+        graph = unwrap(repo.output_graph())
+        node_ids = {n.id for n in graph.nodes}
+        assert req_id in node_ids
+        assert bug_id in node_ids
+
+
 def test_validate_exclude_nested_subgraphs(initialized_repo: Repo) -> None:
     result = unwrap(initialized_repo.validate(include_nested_subgraphs=False))
     assert result.summary.total_validation_issues >= 0
